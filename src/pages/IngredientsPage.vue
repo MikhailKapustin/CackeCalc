@@ -14,6 +14,7 @@
 
       <!-- Ingredients List -->
       <IngredientList
+        :highlighted-id="highlightedIngredientId"
         @edit="handleEdit"
         @delete="handleDelete"
       />
@@ -54,6 +55,7 @@ const store = useIngredientsStore()
 
 const showAddDialog = ref(false)
 const editingIngredient = ref<Ingredient | undefined>(undefined)
+const highlightedIngredientId = ref<number | null>(null)
 
 // Load ingredients on mount
 onMounted(async () => {
@@ -69,16 +71,20 @@ onMounted(async () => {
 
 async function handleSave(data: IngredientInput) {
   try {
+    let ingredientId: number
+
     if (editingIngredient.value) {
       // Update existing ingredient
       await store.updateIngredient(editingIngredient.value.id, data)
+      ingredientId = editingIngredient.value.id
       $q.notify({
         type: 'positive',
         message: 'Ингредиент обновлен'
       })
     } else {
       // Add new ingredient
-      await store.addIngredient(data)
+      const newIngredient = await store.addIngredient(data)
+      ingredientId = newIngredient.id
       $q.notify({
         type: 'positive',
         message: 'Ингредиент добавлен'
@@ -87,7 +93,14 @@ async function handleSave(data: IngredientInput) {
 
     showAddDialog.value = false
     resetForm()
+
+    // Highlight the ingredient and clear after 3 seconds
+    highlightedIngredientId.value = ingredientId
+    setTimeout(() => {
+      highlightedIngredientId.value = null
+    }, 3000)
   } catch (error) {
+    console.error('Error in handleSave:', error)
     $q.notify({
       type: 'negative',
       message: 'Ошибка сохранения ингредиента'

@@ -50,6 +50,7 @@
       <QItem
         v-for="ingredient in store.filteredIngredients"
         :key="ingredient.id"
+        :class="{ 'highlighted-ingredient': ingredient.id === props.highlightedId }"
         data-test="ingredient-item"
       >
         <QItemSection>
@@ -123,11 +124,16 @@ import { ref } from 'vue'
 import { useIngredientsStore } from '@/stores/ingredients'
 import type { Ingredient, PurchaseUnit, MeasurementType } from '@/types/ingredient'
 
+interface Props {
+  highlightedId?: number | null
+}
+
 interface Emits {
   (e: 'edit', id: number): void
   (e: 'delete', id: number): void
 }
 
+const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const store = useIngredientsStore()
@@ -189,5 +195,22 @@ function highlightSearchTerm(name: string): string {
 mark {
   background-color: #ffeb3b;
   padding: 0 2px;
+}
+
+.highlighted-ingredient {
+  background-color: #e3f2fd;
+  animation: highlight-fade 2s ease-in-out;
+}
+
+@keyframes highlight-fade {
+  0% {
+    background-color: #2196f3;
+  }
+  50% {
+    background-color: #64b5f6;
+  }
+  100% {
+    background-color: #e3f2fd;
+  }
 }
 </style>

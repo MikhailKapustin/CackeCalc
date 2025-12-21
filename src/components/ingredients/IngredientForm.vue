@@ -25,6 +25,7 @@
         outlined
         dense
         suffix="₽"
+        @focus="onPriceFocus"
       />
 
       <!-- Количество -->
@@ -38,6 +39,7 @@
         ]"
         outlined
         dense
+        @focus="onAmountFocus"
       />
 
       <!-- Единица измерения -->
@@ -89,6 +91,7 @@
 import { ref, computed, watch } from 'vue'
 import type { Ingredient, IngredientInput, PurchaseUnit, MeasurementType } from '@/types/ingredient'
 import { calculateBasePrice } from '@/utils/units'
+import { useIngredientsStore } from '@/stores/ingredients'
 
 interface Props {
   ingredient?: Ingredient
@@ -127,6 +130,10 @@ const formData = ref({
 
 const errorMessage = ref('')
 
+// Track if fields were focused to clear default values
+const priceFocused = ref(false)
+const amountFocused = ref(false)
+
 // Determine measurement type from unit
 function getMeasurementType(unit: PurchaseUnit): MeasurementType {
   if (unit === 'kg' || unit === 'g') return 'weight'
@@ -137,6 +144,37 @@ function getMeasurementType(unit: PurchaseUnit): MeasurementType {
 // Handle unit change
 function onUnitChange(unit: PurchaseUnit) {
   formData.value.type = getMeasurementType(unit)
+}
+
+// Handle focus on price field - clear if default value
+function onPriceFocus() {
+  if (!priceFocused.value && formData.value.purchasePrice === 0) {
+    formData.value.purchasePrice = null as any
+  }
+  priceFocused.value = true
+}
+
+// Handle focus on amount field - clear if default value
+function onAmountFocus() {
+  if (!amountFocused.value && formData.value.purchaseAmount === 0) {
+    formData.value.purchaseAmount = null as any
+  }
+  amountFocused.value = true
+}
+
+// Check if ingredient name is unique
+function isNameUnique(name: string): boolean {
+  // Get all ingredients from store
+  const ingredientsStore = useIngredientsStore()
+  const normalizedName = name.trim().toLowerCase()
+
+  // Check if name already exists (excluding current ingredient if editing)
+  return !ingredientsStore.ingredients.some(ing => {
+    if (props.ingredient && ing.id === props.ingredient.id) {
+      return false // Skip current ingredient when editing
+    }
+    return ing.name.trim().toLowerCase() === normalizedName
+  })
 }
 
 // Calculate price per base unit
@@ -167,25 +205,34 @@ function onSubmit() {
   errorMessage.value = ''
 
   try {
+    // Trim name
+    const trimmedName = formData.value.name.trim()
+
     // Validate
-    if (!formData.value.name) {
+    if (!trimmedName) {
       errorMessage.value = 'Название обязательно'
       return
     }
 
-    if (formData.value.purchasePrice <= 0) {
+    // Check name uniqueness
+    if (!isNameUnique(trimmedName)) {
+      errorMessage.value = 'Ингредиент с таким названием уже существует'
+      return
+    }
+
+    if (!formData.value.purchasePrice || formData.value.purchasePrice <= 0) {
       errorMessage.value = 'Цена должна быть положительным числом'
       return
     }
 
-    if (formData.value.purchaseAmount <= 0) {
+    if (!formData.value.purchaseAmount || formData.value.purchaseAmount <= 0) {
       errorMessage.value = 'Количество должно быть больше нуля'
       return
     }
 
-    // Emit save event
+    // Emit save event with trimmed name
     emit('save', {
-      name: formData.value.name,
+      name: trimmedName,
       purchasePrice: formData.value.purchasePrice,
       purchaseAmount: formData.value.purchaseAmount,
       purchaseUnit: formData.value.purchaseUnit,
