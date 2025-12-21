@@ -305,6 +305,10 @@ price_per_base_unit = purchase_price / (purchase_amount × conversion_rate)
 - **AdMob** (capacitor-community/admob) - для рекламы
 - **In-App Purchase** (capacitor-plugin-purchase) - для Pro версии
 
+**Аналитика:**
+- **Firebase Analytics** (@capawesome-team/capacitor-firebase/analytics) - основная аналитика
+- Альтернатива: **Aptabase** (aptabase) - privacy-first аналитика
+
 **Дополнительные библиотеки:**
 - **html2canvas** - генерация изображений для чеков
 - **@capacitor/filesystem** - работа с файловой системой (логотипы, экспорт/импорт JSON)
@@ -1822,9 +1826,19 @@ calculateur de coûts, pâtisserie maison, prix recettes, marge bénéficiaire, 
   - [ ] Предпросмотр чека в реальном времени
   - [ ] Сохранение настроек в БД (SQLite - настройки чека, Secure Storage - isPro)
 
-### 8.7 Этап 7: Полировка и тестирование (1-2 недели)
+### 8.7 Этап 7: Аналитика и полировка (1-2 недели)
 
 **Задачи:**
+- [ ] **Интеграция Firebase Analytics:**
+  - [ ] Установка @capawesome-team/capacitor-firebase/analytics
+  - [ ] Настройка Firebase проекта (iOS, Android)
+  - [ ] Инициализация аналитики при запуске
+  - [ ] Трекинг основных событий: recipe_created, order_calculated
+  - [ ] User properties: user_type (free/pro), recipes_count
+  - [ ] Конверсионные события: paywall_shown, purchase, pro_conversion
+  - [ ] Вирусные события: receipt_shared, receipt_link_clicked
+  - [ ] Интеграция AdMob revenue с Firebase
+  - [ ] GDPR consent для аналитики
 - [ ] **Экспорт/Импорт данных:**
   - [ ] Реализация экспорта данных в JSON
   - [ ] **Экспорт настроек чека для Pro:** логотип (base64), цвета, контакты
@@ -1889,6 +1903,428 @@ calculateur de coûts, pâtisserie maison, prix recettes, marge bénéficiaire, 
 - Retention Day 7: 30%+
 - Conversion to Pro: 5-10%
 - Среднее количество рецептов: 8-10 на активного пользователя
+
+### 9.3 Реализация трекинга метрик
+
+**Технология:** Firebase Analytics (@capawesome-team/capacitor-firebase/analytics)
+
+**Инициализация:**
+```typescript
+// main.ts
+import { FirebaseAnalytics } from '@capawesome-team/capacitor-firebase/analytics';
+
+async function initializeAnalytics() {
+  // Включить сбор аналитики
+  await FirebaseAnalytics.setEnabled({ enabled: true });
+
+  // Установить User ID (анонимный или после регистрации)
+  const userId = await getOrCreateUserId();
+  await FirebaseAnalytics.setUserId({ userId });
+
+  // Установить user properties
+  const isPro = await getProStatus();
+  await FirebaseAnalytics.setUserProperty({
+    key: 'user_type',
+    value: isPro ? 'pro' : 'free'
+  });
+
+  await FirebaseAnalytics.setUserProperty({
+    key: 'language',
+    value: settingsStore.language
+  });
+}
+```
+
+---
+
+#### **9.3.1 Трекинг Engagement метрик**
+
+**DAU/MAU (автоматически):**
+Firebase Analytics автоматически отслеживает активных пользователей. Доступно в консоли Firebase.
+
+**Retention (автоматически):**
+Firebase автоматически считает Retention. Доступно: Firebase Console → Analytics → Retention.
+
+**Среднее количество рецептов:**
+```typescript
+// Трекаем при создании/удалении рецепта
+async function onRecipeCountChanged(newCount: number) {
+  await FirebaseAnalytics.setUserProperty({
+    key: 'recipes_count',
+    value: newCount.toString()
+  });
+}
+
+// При создании рецепта
+async function createRecipe(recipe: Recipe) {
+  await db.insert('recipes', recipe);
+
+  const count = await getRecipesCount();
+  await onRecipeCountChanged(count);
+
+  await FirebaseAnalytics.logEvent({
+    name: 'recipe_created',
+    params: {
+      recipe_name: recipe.name,
+      total_recipes: count
+    }
+  });
+}
+```
+
+**Среднее количество расчетов заказа:**
+```typescript
+// Трекаем каждый расчет
+async function calculateOrder(recipe: Recipe, weight: number) {
+  const totalPrice = calculateTotalPrice(recipe, weight);
+
+  await FirebaseAnalytics.logEvent({
+    name: 'order_calculated',
+    params: {
+      recipe_id: recipe.id,
+      weight_kg: weight,
+      total_price: totalPrice,
+      profit: recipe.sellingPrice * weight - recipe.totalCost * weight
+    }
+  });
+}
+```
+
+**Агрегация в Firebase Console:**
+Analytics → Events → `order_calculated` → Count by user
+
+---
+
+#### **9.3.2 Трекинг Монетизации**
+
+**Conversion rate Free → Pro:**
+```typescript
+// Трекаем покупку Pro
+async function onPurchasePro(productId: string, price: number) {
+  await FirebaseAnalytics.logEvent({
+    name: 'purchase',
+    params: {
+      transaction_id: generateTransactionId(),
+      value: price,
+      currency: 'USD',
+      items: [{
+        item_id: productId,
+        item_name: 'CakeCost Pro',
+        price: price,
+        quantity: 1
+      }]
+    }
+  });
+
+  // Обновить user property
+  await FirebaseAnalytics.setUserProperty({
+    key: 'user_type',
+    value: 'pro'
+  });
+
+  // Трекаем с какого триггера купили
+  await FirebaseAnalytics.logEvent({
+    name: 'pro_conversion',
+    params: {
+      trigger: lastPaywallTrigger // 'recipe_limit' | 'ingredient_limit' | 'import_blocked' | 'receipt_branding'
+    }
+  });
+}
+
+// Трекаем показ paywall
+async function showProPaywall(trigger: string) {
+  lastPaywallTrigger = trigger;
+
+  await FirebaseAnalytics.logEvent({
+    name: 'paywall_shown',
+    params: {
+      trigger: trigger
+    }
+  });
+}
+```
+
+**Конверсия считается в Firebase:**
+Funnel: `paywall_shown` → `purchase`
+
+**ARPU (вручную или через Firebase):**
+Firebase Console → Analytics → Revenue → ARPU (автоматически)
+
+**Ad Revenue:**
+```typescript
+// Интеграция AdMob с Firebase Analytics (автоматически)
+// При подключении AdMob к Firebase, доход автоматически попадает в аналитику
+
+// Дополнительно можно трекать показы
+async function onAdShown(adType: 'banner' | 'interstitial') {
+  await FirebaseAnalytics.logEvent({
+    name: 'ad_impression',
+    params: {
+      ad_type: adType,
+      ad_platform: 'admob',
+      user_type: await getProStatus() ? 'pro' : 'free'
+    }
+  });
+}
+```
+
+---
+
+#### **9.3.3 Трекинг Вирусности**
+
+**Количество отправленных чеков:**
+```typescript
+async function shareReceipt(recipe: Recipe, weight: number, totalPrice: number) {
+  // Генерация чека
+  const receiptImage = await generateReceiptImage(recipe, weight, totalPrice);
+
+  // Поделиться
+  await Share.share({
+    title: `Заказ: ${recipe.name}`,
+    files: [receiptImage],
+    url: 'https://cakecost.app/download' // Deep link
+  });
+
+  // Трекаем отправку
+  await FirebaseAnalytics.logEvent({
+    name: 'receipt_shared',
+    params: {
+      recipe_id: recipe.id,
+      recipe_name: recipe.name,
+      order_value: totalPrice,
+      has_branding: isPro && hasCustomBranding,
+      share_method: 'native_share' // или 'whatsapp', 'telegram'
+    }
+  });
+}
+```
+
+**CTR по ссылкам в чеках:**
+```typescript
+// Использовать Firebase Dynamic Links
+import { FirebaseDynamicLinks } from '@capawesome-team/capacitor-firebase/dynamic-links';
+
+async function createReceiptLink(recipeId: string) {
+  const link = await FirebaseDynamicLinks.createShortLink({
+    link: `https://cakecost.app/download?utm_source=receipt&recipe=${recipeId}`,
+    domainUriPrefix: 'https://cakecost.page.link'
+  });
+
+  return link.shortLink;
+}
+
+// При открытии приложения по ссылке
+async function handleDynamicLink(url: string) {
+  const params = parseUrl(url);
+
+  if (params.utm_source === 'receipt') {
+    await FirebaseAnalytics.logEvent({
+      name: 'receipt_link_clicked',
+      params: {
+        recipe_id: params.recipe,
+        campaign: 'viral_loop'
+      }
+    });
+  }
+}
+```
+
+**CTR считается:**
+CTR = `receipt_link_clicked` / `receipt_shared` × 100%
+
+**K-factor (коэффициент виральности):**
+```typescript
+// K-factor = (количество приглашенных пользователей) / (количество пригласивших)
+
+// Трекаем установки по реферальной ссылке
+async function onAppInstalled() {
+  const referralSource = await getReferralSource(); // из Dynamic Link
+
+  await FirebaseAnalytics.logEvent({
+    name: 'app_installed',
+    params: {
+      referral_source: referralSource || 'organic',
+      campaign: referralSource ? 'viral_loop' : null
+    }
+  });
+}
+
+// K-factor рассчитывается в BigQuery или вручную:
+// K = (installs with referral_source='viral_loop') / (users who shared receipt)
+```
+
+---
+
+#### **9.3.4 Кастомные события для детальной аналитики**
+
+```typescript
+// Экраны
+async function trackScreen(screenName: string) {
+  await FirebaseAnalytics.logEvent({
+    name: 'screen_view',
+    params: {
+      screen_name: screenName,
+      screen_class: screenName
+    }
+  });
+}
+
+// Использование поиска
+async function onSearchUsed(searchType: 'recipes' | 'ingredients', query: string) {
+  await FirebaseAnalytics.logEvent({
+    name: 'search',
+    params: {
+      search_term: query,
+      search_type: searchType
+    }
+  });
+}
+
+// Экспорт/Импорт
+async function onDataExported(recipesCount: number, ingredientsCount: number) {
+  await FirebaseAnalytics.logEvent({
+    name: 'data_exported',
+    params: {
+      recipes_count: recipesCount,
+      ingredients_count: ingredientsCount,
+      user_type: await getProStatus() ? 'pro' : 'free'
+    }
+  });
+}
+
+async function onDataImported(recipesCount: number, ingredientsCount: number, blocked: boolean) {
+  await FirebaseAnalytics.logEvent({
+    name: 'data_imported',
+    params: {
+      recipes_count: recipesCount,
+      ingredients_count: ingredientsCount,
+      blocked_by_limit: blocked,
+      user_type: await getProStatus() ? 'pro' : 'free'
+    }
+  });
+}
+
+// Изменение цены ингредиента (триггер пересчета)
+async function onIngredientPriceChanged(ingredientId: number, affectedRecipes: number) {
+  await FirebaseAnalytics.logEvent({
+    name: 'ingredient_price_updated',
+    params: {
+      ingredient_id: ingredientId,
+      affected_recipes_count: affectedRecipes
+    }
+  });
+}
+
+// Использование брендирования чека (Pro feature)
+async function onReceiptCustomized(hasLogo: boolean, hasCustomColors: boolean) {
+  await FirebaseAnalytics.logEvent({
+    name: 'receipt_customized',
+    params: {
+      has_logo: hasLogo,
+      has_custom_colors: hasCustomColors
+    }
+  });
+}
+```
+
+---
+
+#### **9.3.5 Дашборд в Firebase Console**
+
+**Автоматические отчеты:**
+1. **Overview Dashboard:**
+   - Active users (DAU/MAU)
+   - New users
+   - Revenue
+   - Retention cohorts
+
+2. **Events:**
+   - Все кастомные события
+   - Топ событий по частоте
+   - Funnel analysis
+
+3. **Conversions:**
+   - Purchase events
+   - Conversion funnels
+   - Revenue по источникам
+
+4. **User Properties:**
+   - Сегментация по user_type (free/pro)
+   - Среднее recipes_count
+   - География, языки, устройства
+
+**Кастомные дашборды (BigQuery):**
+Для сложных метрик (K-factor, detailed retention) можно экспортировать данные в BigQuery и строить SQL запросы.
+
+---
+
+#### **9.3.6 Privacy & GDPR Compliance**
+
+```typescript
+// Запросить согласие пользователя (GDPR)
+async function requestAnalyticsConsent() {
+  const consent = await Dialog.create({
+    title: 'Улучшение приложения',
+    message: 'Разрешить сбор анонимной аналитики для улучшения приложения?',
+    ok: { label: 'Разрешить' },
+    cancel: { label: 'Отклонить' }
+  });
+
+  const enabled = await consent.onOk();
+
+  await FirebaseAnalytics.setEnabled({ enabled });
+
+  // Сохранить выбор
+  await settingsStore.setAnalyticsEnabled(enabled);
+}
+
+// Отключить аналитику для конкретного пользователя
+async function disableAnalytics() {
+  await FirebaseAnalytics.setEnabled({ enabled: false });
+}
+```
+
+---
+
+**Альтернатива: Aptabase (Privacy-First)**
+
+Если пользователи требуют полную приватность, можно использовать Aptabase:
+
+```typescript
+import { trackEvent } from '@aptabase/capacitor';
+
+// Инициализация
+await init('A-EU-1234567890'); // App Key
+
+// Трекинг событий
+await trackEvent('recipe_created', {
+  recipes_count: count
+});
+
+await trackEvent('order_calculated', {
+  weight_kg: weight,
+  total_price: totalPrice
+});
+
+// Aptabase автоматически трекает:
+// - Sessions
+// - Screen views
+// - Device info
+// НЕ хранит IP адреса и персональные данные
+```
+
+**Сравнение:**
+
+| Фича | Firebase Analytics | Aptabase |
+|------|-------------------|----------|
+| Автоматические метрики | ✅ DAU/MAU, Retention, Revenue | ✅ Sessions, Screen views |
+| Интеграция с AdMob | ✅ Автоматически | ❌ |
+| GDPR Compliance | ⚠️ Требует согласия | ✅ Privacy-first |
+| Стоимость | 🆓 Бесплатно | 🆓 До 100k events/месяц |
+| Self-hosted | ❌ | ✅ Опционально |
+| Funnel Analysis | ✅ Встроенный | ⚠️ Вручную |
+
+**Рекомендация:** Начать с Firebase Analytics (проще, больше автоматики), при необходимости мигрировать на Aptabase для GDPR compliance.
 
 ---
 
@@ -2096,16 +2532,25 @@ interface ProStatus {
 - ✅ Архитектура многоуровневой защиты (3 уровня)
 - ✅ Диаграмма безопасности и таблица атак/защиты
 - ✅ Новый триггер покупки Pro: блокировка импорта большого файла
+- ✅ **Раздел 9.3: Детальная реализация трекинга метрик**
+  - Firebase Analytics интеграция
+  - Трекинг всех метрик из раздела 9.1
+  - Кастомные события для аналитики
+  - GDPR compliance
+  - Сравнение с Aptabase
 
 **Изменено:**
 - ⚙️ Флаг `is_pro` перенесен из SQLite в Secure Storage (Keychain/KeyStore)
 - ⚙️ Таблица `settings` - удалены поля `is_pro`, `show_watermark`
 - ⚙️ Этап 6 увеличен до 2-3 недель (добавлена безопасность)
+- ⚙️ Этап 7 переименован: "Аналитика и полировка" (добавлена интеграция аналитики)
 - ⚙️ Общее время разработки: 12-16 недель (было 11-15)
 
 **Библиотеки:**
 - 📦 @aparajita/capacitor-secure-storage
 - 📦 @talsec/free-rasp-capacitor
+- 📦 @capawesome-team/capacitor-firebase/analytics
+- 📦 aptabase (опционально, privacy-first)
 
 ### Версия 1.0 (2025-12-21)
 - 🎉 Первая версия спецификации
