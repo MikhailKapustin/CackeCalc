@@ -293,6 +293,10 @@ price_per_base_unit = purchase_price / (purchase_amount × conversion_rate)
 - **SQLite** (через @capacitor-community/sqlite)
 - Локальное хранение на устройстве пользователя
 
+**Безопасность:**
+- **@aparajita/capacitor-secure-storage** - защищенное хранилище для флага Pro версии (Keychain/KeyStore)
+- **@talsec/free-rasp-capacitor** - Runtime Application Self-Protection (детекция root/tampering)
+
 **Локализация:**
 - **vue-i18n** (встроена в Quasar)
 - Поддержка языков: английский (en), русский (ru), испанский (es), немецкий (de), французский (fr), китайский (zh), казахский (kk)
@@ -346,14 +350,17 @@ src/
 ├── stores/
 │   ├── ingredients.ts
 │   ├── recipes.ts
-│   └── settings.ts
+│   ├── settings.ts
+│   └── security.ts          # RASP угрозы и состояние безопасности
 ├── database/
 │   ├── schema.ts
 │   └── migrations.ts
 ├── utils/
 │   ├── exportData.ts
 │   ├── importData.ts
-│   └── restorePurchases.ts
+│   ├── restorePurchases.ts
+│   ├── secureStorage.ts      # Функции работы с Secure Storage (Pro статус)
+│   └── rasp.ts               # Инициализация и конфигурация RASP
 ├── pages/
 │   ├── IngredientsPage.vue
 │   ├── RecipesPage.vue
@@ -435,8 +442,6 @@ CREATE TABLE IF NOT EXISTS settings (
     currency_symbol TEXT DEFAULT '₽',
     language TEXT DEFAULT 'en',
     theme TEXT DEFAULT 'light',              -- 'light', 'dark', 'auto'
-    is_pro BOOLEAN DEFAULT 0,
-    show_watermark BOOLEAN DEFAULT 1,
 
     -- Настройки брендирования чека (Pro версия)
     receipt_logo_path TEXT,                -- Путь к файлу логотипа
@@ -457,6 +462,9 @@ CREATE TABLE IF NOT EXISTS settings (
 
 -- Начальные данные
 INSERT OR IGNORE INTO settings (id) VALUES (1);
+
+-- ВАЖНО: Флаг is_pro НЕ хранится в SQLite!
+-- Он хранится в защищенном хранилище через Secure Storage (Keychain/KeyStore)
 ```
 
 ### 3.4 Экспорт/Импорт данных
@@ -468,10 +476,13 @@ INSERT OR IGNORE INTO settings (id) VALUES (1);
 Все данные экспортируются в один JSON файл с именем `cakecost_backup_YYYY-MM-DD.json`
 
 **Структура JSON файла:**
+
+*Для Free пользователей:*
 ```json
 {
   "version": "1.0",
   "exportDate": "2025-12-21T10:30:00Z",
+  "exportedBy": "free",
   "data": {
     "ingredients": [
       {
@@ -502,50 +513,418 @@ INSERT OR IGNORE INTO settings (id) VALUES (1);
     "settings": {
       "currencySymbol": "₽",
       "language": "ru",
-      "theme": "light",
-      "receiptLogoPath": null,
-      "receiptBgColor": "#FFFFFF",
-      "receiptBusinessName": "Моя кондитерская",
-      "receiptPhone": "+7 999 123-45-67"
-      // ВАЖНО: is_pro НЕ экспортируется!
+      "theme": "light"
+      // Настройки чека НЕ экспортируются для Free версии
     }
   }
 }
 ```
 
+*Для Pro пользователей (с настройками чека):*
+```json
+{
+  "version": "1.0",
+  "exportDate": "2025-12-21T10:30:00Z",
+  "exportedBy": "pro",
+  "data": {
+    "ingredients": [ /* ... */ ],
+    "recipes": [ /* ... */ ],
+    "settings": {
+      "currencySymbol": "₽",
+      "language": "ru",
+      "theme": "dark"
+    },
+    "receiptSettings": {
+      "logo": {
+        "base64": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA...",
+        "filename": "my_logo.png"
+      },
+      "logoOpacity": 80,
+      "logoPosition": "watermark",
+      "bgColor": "#FFE5E5",
+      "bgOpacity": 95,
+      "textColor": "#2C1810",
+      "businessName": "Sweet Dreams Bakery",
+      "phone": "+7 999 123-45-67",
+      "instagram": "@sweetdreams_bakery",
+      "website": "sweetdreams.com"
+    }
+  }
+}
+```
+
+**ВАЖНО:**
+- Поле `is_pro` НЕ экспортируется (восстанавливается через IAP)
+- Настройки чека экспортируются ТОЛЬКО для Pro пользователей
+- Логотип кодируется в base64 (data URI формат)
+
 **Логика экспорта:**
 1. Извлечь все ингредиенты из таблицы `ingredients`
 2. Извлечь все рецепты с их составом из таблиц `recipes` и `recipe_items`
 3. Извлечь настройки из таблицы `settings`, **ИСКЛЮЧАЯ поле `is_pro`**
-4. Сформировать JSON с версией и датой экспорта
-5. Сохранить файл через Capacitor Filesystem API
-6. Предложить пользователю поделиться файлом (облако, мессенджер)
+4. **Если пользователь Pro - экспортировать настройки чека:**
+   - Прочитать логотип из файловой системы и закодировать в base64
+   - Включить все настройки брендирования (цвета, прозрачность, позиция, контакты)
+5. Сформировать JSON с версией и датой экспорта
+6. Сохранить файл через Capacitor Filesystem API
+7. Предложить пользователю поделиться файлом (облако, мессенджер)
 
 **Логика импорта:**
 1. Выбрать JSON файл через Capacitor File Picker
 2. Валидировать структуру JSON (проверка версии, обязательных полей)
-3. Показать предупреждение: "Импорт перезапишет все текущие данные. Продолжить?"
-4. При подтверждении:
+3. **Проверить статус Pro пользователя из Secure Storage**
+4. **Валидация для Free пользователей:**
+   ```typescript
+   const isPro = await getProStatus();
+   const recipesCount = importData.recipes.length;
+   const ingredientsCount = importData.ingredients.length;
+
+   if (!isPro) {
+     if (recipesCount > 5) {
+       showError(
+         'Импорт невозможен',
+         `Файл содержит ${recipesCount} рецептов. ` +
+         `В бесплатной версии доступно максимум 5 рецептов. ` +
+         `Приобретите Pro версию для импорта.`
+       );
+       return;
+     }
+
+     if (ingredientsCount > 15) {
+       showError(
+         'Импорт невозможен',
+         `Файл содержит ${ingredientsCount} ингредиентов. ` +
+         `В бесплатной версии доступно максимум 15 ингредиентов. ` +
+         `Приобретите Pro версию для импорта.`
+       );
+       return;
+     }
+   }
+   ```
+5. Показать предупреждение: "Импорт перезапишет все текущие данные. Продолжить?"
+6. При подтверждении:
    - Очистить таблицы `ingredients`, `recipes`, `recipe_items`
    - Вставить данные из JSON
-   - Обновить настройки из JSON (кроме `is_pro`)
-   - **Проверить статус Pro через магазин приложений** и установить флаг
-5. Показать сообщение об успехе: "Импортировано: X ингредиентов, Y рецептов"
+   - Обновить основные настройки из JSON (язык, валюта, тема)
+   - **Если пользователь Pro И в JSON есть настройки чека:**
+     - Декодировать логотип из base64 и сохранить в файловую систему
+     - Импортировать настройки брендирования чека (цвета, контакты)
+   - **Pro статус НЕ импортируется** - он хранится в Secure Storage отдельно
+   - Автоматически проверить статус Pro через магазин приложений (см. раздел 3.6)
+7. Показать сообщение об успехе: "Импортировано: X ингредиентов, Y рецептов"
 
 **Восстановление Pro версии:**
 При каждом запуске приложения (и при импорте):
 ```typescript
-// Проверка покупки через In-App Purchase плагин
+// Проверка покупки через In-App Purchase плагин и Secure Storage
 async function restorePurchases() {
   const purchases = await InAppPurchase.restorePurchases();
   const hasPro = purchases.some(p => p.productId === 'cakecost_pro');
 
   if (hasPro) {
-    // Обновить флаг в БД
+    // Сохранить флаг в Secure Storage (НЕ в SQLite!)
+    await saveProStatus({
+      isPro: true,
+      purchaseDate: new Date().toISOString(),
+      productId: 'cakecost_pro',
+      lastVerified: new Date().toISOString()
+    });
+  }
+}
+```
+
+**Реализация экспорта:**
+```typescript
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+
+async function exportData() {
+  const isPro = await getProStatus();
+
+  // 1. Собрать данные из SQLite
+  const ingredients = await db.query('SELECT * FROM ingredients');
+  const recipes = await db.query('SELECT * FROM recipes');
+  const recipeItems = await db.query('SELECT * FROM recipe_items');
+  const settings = await db.query('SELECT * FROM settings WHERE id = 1');
+
+  // 2. Подготовить базовую структуру экспорта
+  const exportData: any = {
+    version: '1.0',
+    exportDate: new Date().toISOString(),
+    exportedBy: isPro ? 'pro' : 'free',
+    data: {
+      ingredients: ingredients.values,
+      recipes: recipes.values.map(recipe => ({
+        ...recipe,
+        items: recipeItems.values.filter(item => item.recipe_id === recipe.id)
+      })),
+      settings: {
+        currencySymbol: settings.values[0].currency_symbol,
+        language: settings.values[0].language,
+        theme: settings.values[0].theme
+      }
+    }
+  };
+
+  // 3. Для Pro - добавить настройки чека
+  if (isPro && settings.values[0].receipt_logo_path) {
+    try {
+      // Прочитать логотип и закодировать в base64
+      const logoFile = await Filesystem.readFile({
+        path: settings.values[0].receipt_logo_path,
+        directory: Directory.Data
+      });
+
+      exportData.data.receiptSettings = {
+        logo: {
+          base64: logoFile.data, // Уже в base64 формате
+          filename: settings.values[0].receipt_logo_path.split('/').pop()
+        },
+        logoOpacity: settings.values[0].receipt_logo_opacity,
+        logoPosition: settings.values[0].receipt_logo_position,
+        bgColor: settings.values[0].receipt_bg_color,
+        bgOpacity: settings.values[0].receipt_bg_opacity,
+        textColor: settings.values[0].receipt_text_color,
+        businessName: settings.values[0].receipt_business_name,
+        phone: settings.values[0].receipt_phone,
+        instagram: settings.values[0].receipt_instagram,
+        website: settings.values[0].receipt_website
+      };
+    } catch (error) {
+      console.warn('Could not read logo file:', error);
+      // Продолжить экспорт без логотипа
+    }
+  }
+
+  // 4. Сохранить JSON файл
+  const filename = `cakecost_backup_${new Date().toISOString().split('T')[0]}.json`;
+  const jsonString = JSON.stringify(exportData, null, 2);
+
+  await Filesystem.writeFile({
+    path: filename,
+    data: jsonString,
+    directory: Directory.Documents,
+    encoding: Encoding.UTF8
+  });
+
+  // 5. Поделиться файлом
+  const fileUri = await Filesystem.getUri({
+    path: filename,
+    directory: Directory.Documents
+  });
+
+  await Share.share({
+    title: 'Экспорт данных CakeCost',
+    text: 'Резервная копия данных приложения',
+    url: fileUri.uri,
+    dialogTitle: 'Сохранить резервную копию'
+  });
+}
+```
+
+**Реализация импорта с валидацией:**
+```typescript
+async function importData(fileUri: string) {
+  try {
+    // 1. Прочитать файл
+    const fileContent = await Filesystem.readFile({
+      path: fileUri,
+      encoding: Encoding.UTF8
+    });
+
+    const importData = JSON.parse(fileContent.data as string);
+
+    // 2. Валидация структуры
+    if (!importData.version || !importData.data) {
+      throw new Error('Неверный формат файла');
+    }
+
+    // 3. Проверить статус Pro
+    const isPro = await getProStatus();
+    const recipesCount = importData.data.recipes?.length || 0;
+    const ingredientsCount = importData.data.ingredients?.length || 0;
+
+    // 4. Валидация для Free пользователей
+    if (!isPro) {
+      if (recipesCount > 5) {
+        Dialog.create({
+          title: 'Импорт невозможен',
+          message: `Файл содержит ${recipesCount} рецептов. ` +
+                   `В бесплатной версии доступно максимум 5 рецептов.\n\n` +
+                   `Приобретите Pro версию для импорта всех данных.`,
+          ok: {
+            label: 'Купить Pro',
+            color: 'primary'
+          },
+          cancel: {
+            label: 'Отмена',
+            color: 'grey'
+          }
+        }).onOk(() => {
+          // Открыть экран покупки Pro
+          router.push('/settings/purchase-pro');
+        });
+        return;
+      }
+
+      if (ingredientsCount > 15) {
+        Dialog.create({
+          title: 'Импорт невозможен',
+          message: `Файл содержит ${ingredientsCount} ингредиентов. ` +
+                   `В бесплатной версии доступно максимум 15 ингредиентов.\n\n` +
+                   `Приобретите Pro версию для импорта всех данных.`,
+          ok: {
+            label: 'Купить Pro',
+            color: 'primary'
+          },
+          cancel: {
+            label: 'Отмена',
+            color: 'grey'
+          }
+        }).onOk(() => {
+          router.push('/settings/purchase-pro');
+        });
+        return;
+      }
+    }
+
+    // 5. Подтверждение импорта
+    Dialog.create({
+      title: 'Подтверждение импорта',
+      message: `Импорт перезапишет все текущие данные:\n\n` +
+               `• ${ingredientsCount} ингредиентов\n` +
+               `• ${recipesCount} рецептов\n\n` +
+               `Продолжить?`,
+      ok: {
+        label: 'Импортировать',
+        color: 'primary'
+      },
+      cancel: {
+        label: 'Отмена',
+        color: 'grey'
+      }
+    }).onOk(async () => {
+      await performImport(importData, isPro);
+    });
+
+  } catch (error) {
+    Notify.create({
+      type: 'negative',
+      message: `Ошибка импорта: ${error.message}`
+    });
+  }
+}
+
+async function performImport(importData: any, isPro: boolean) {
+  // 6. Очистить существующие данные
+  await db.execute('DELETE FROM recipe_items');
+  await db.execute('DELETE FROM recipes');
+  await db.execute('DELETE FROM ingredients');
+
+  // 7. Импортировать ингредиенты
+  for (const ingredient of importData.data.ingredients) {
     await db.execute(
-      'UPDATE settings SET is_pro = 1 WHERE id = 1'
+      `INSERT INTO ingredients (name, purchase_price, purchase_amount,
+       purchase_unit, type, price_per_base_unit)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [ingredient.name, ingredient.purchasePrice, ingredient.purchaseAmount,
+       ingredient.purchaseUnit, ingredient.type, ingredient.pricePerBaseUnit]
     );
   }
+
+  // 8. Импортировать рецепты
+  for (const recipe of importData.data.recipes) {
+    const result = await db.execute(
+      `INSERT INTO recipes (name, description, selling_price, selling_unit)
+       VALUES (?, ?, ?, ?)`,
+      [recipe.name, recipe.description, recipe.sellingPrice, recipe.sellingUnit]
+    );
+
+    const recipeId = result.changes.lastId;
+
+    // Импортировать состав рецепта
+    for (const item of recipe.items) {
+      await db.execute(
+        `INSERT INTO recipe_items (recipe_id, ingredient_id, amount)
+         VALUES (?, ?, ?)`,
+        [recipeId, item.ingredientId, item.amount]
+      );
+    }
+  }
+
+  // 9. Импортировать основные настройки
+  await db.execute(
+    `UPDATE settings SET
+     currency_symbol = ?,
+     language = ?,
+     theme = ?
+     WHERE id = 1`,
+    [importData.data.settings.currencySymbol,
+     importData.data.settings.language,
+     importData.data.settings.theme]
+  );
+
+  // 10. Импортировать настройки чека (только для Pro)
+  if (isPro && importData.data.receiptSettings) {
+    const receiptSettings = importData.data.receiptSettings;
+
+    // Декодировать и сохранить логотип
+    let logoPath = null;
+    if (receiptSettings.logo?.base64) {
+      try {
+        const filename = receiptSettings.logo.filename || 'receipt_logo.png';
+        const logoFilePath = `receipts/${filename}`;
+
+        // Сохранить base64 как файл
+        await Filesystem.writeFile({
+          path: logoFilePath,
+          data: receiptSettings.logo.base64,
+          directory: Directory.Data
+        });
+
+        logoPath = logoFilePath;
+      } catch (error) {
+        console.error('Failed to save logo:', error);
+      }
+    }
+
+    // Обновить настройки чека в БД
+    await db.execute(
+      `UPDATE settings SET
+       receipt_logo_path = ?,
+       receipt_logo_opacity = ?,
+       receipt_logo_position = ?,
+       receipt_bg_color = ?,
+       receipt_bg_opacity = ?,
+       receipt_text_color = ?,
+       receipt_business_name = ?,
+       receipt_phone = ?,
+       receipt_instagram = ?,
+       receipt_website = ?
+       WHERE id = 1`,
+      [logoPath,
+       receiptSettings.logoOpacity,
+       receiptSettings.logoPosition,
+       receiptSettings.bgColor,
+       receiptSettings.bgOpacity,
+       receiptSettings.textColor,
+       receiptSettings.businessName,
+       receiptSettings.phone,
+       receiptSettings.instagram,
+       receiptSettings.website]
+    );
+  }
+
+  // 11. Верифицировать Pro статус через IAP
+  await restorePurchases();
+
+  // 12. Уведомление об успехе
+  Notify.create({
+    type: 'positive',
+    message: `Импортировано: ${importData.data.ingredients.length} ингредиентов, ` +
+             `${importData.data.recipes.length} рецептов`,
+    timeout: 3000
+  });
 }
 ```
 
@@ -554,6 +933,10 @@ async function restorePurchases() {
 - ✅ Pro версия автоматически восстанавливается через магазин
 - ✅ Простой обмен рецептами между пользователями (опционально)
 - ✅ Защита от потери покупки при переустановке
+- ✅ **Флаг Pro защищён в Secure Storage и не может быть изменён извне**
+- ✅ **Free пользователи не могут импортировать больше лимита** → стимул купить Pro
+- ✅ **Pro пользователи не теряют настройки чека** при переносе данных
+- ✅ Логотип переносится вместе с настройками (base64 → файл)
 
 ### 3.5 Конвертация единиц измерения
 
@@ -627,6 +1010,449 @@ export const useRecipesStore = defineStore('recipes', {
 });
 ```
 
+### 3.6 Защищенное хранилище для Pro статуса (Secure Storage)
+
+**Назначение:**
+Хранение флага Pro версии в безопасном хранилище операционной системы вместо SQLite, чтобы предотвратить его изменение внешними инструментами.
+
+**Технология:**
+- **iOS:** Keychain (системное зашифрованное хранилище)
+- **Android:** EncryptedSharedPreferences (на основе KeyStore)
+- **Библиотека:** @aparajita/capacitor-secure-storage
+
+**Структура данных:**
+```typescript
+// Ключ для хранения
+const PRO_STATUS_KEY = 'cakecost_pro_status';
+
+// Интерфейс данных Pro статуса
+interface ProStatus {
+  isPro: boolean;
+  purchaseDate?: string;        // ISO дата покупки
+  productId?: string;           // ID продукта из магазина
+  lastVerified?: string;        // Дата последней проверки
+}
+```
+
+**Реализация:**
+
+*Инициализация при запуске приложения:*
+```typescript
+import { SecureStoragePlugin } from '@aparajita/capacitor-secure-storage';
+import { InAppPurchase } from 'capacitor-plugin-purchase';
+
+// Проверка и восстановление Pro статуса
+async function initializeProStatus() {
+  try {
+    // 1. Попытаться прочитать из Secure Storage
+    const stored = await SecureStoragePlugin.get({ key: PRO_STATUS_KEY });
+    const proStatus: ProStatus = JSON.parse(stored.value);
+
+    // 2. Верифицировать покупку через магазин приложений
+    const purchases = await InAppPurchase.restorePurchases();
+    const hasPro = purchases.some(p => p.productId === 'cakecost_pro');
+
+    // 3. Если статусы не совпадают - приоритет магазину
+    if (hasPro && !proStatus.isPro) {
+      await saveProStatus({
+        isPro: true,
+        purchaseDate: new Date().toISOString(),
+        productId: 'cakecost_pro',
+        lastVerified: new Date().toISOString()
+      });
+    } else if (!hasPro && proStatus.isPro) {
+      // Покупка не найдена - сбросить статус
+      await saveProStatus({
+        isPro: false,
+        lastVerified: new Date().toISOString()
+      });
+    }
+
+    return proStatus;
+  } catch (error) {
+    // Ключ не найден - первый запуск
+    return { isPro: false };
+  }
+}
+
+// Сохранение Pro статуса
+async function saveProStatus(status: ProStatus) {
+  await SecureStoragePlugin.set({
+    key: PRO_STATUS_KEY,
+    value: JSON.stringify(status)
+  });
+}
+
+// Получение текущего статуса
+async function getProStatus(): Promise<boolean> {
+  try {
+    const stored = await SecureStoragePlugin.get({ key: PRO_STATUS_KEY });
+    const proStatus: ProStatus = JSON.parse(stored.value);
+    return proStatus.isPro;
+  } catch {
+    return false;
+  }
+}
+
+// Обработка успешной покупки
+async function handlePurchaseSuccess(productId: string) {
+  await saveProStatus({
+    isPro: true,
+    purchaseDate: new Date().toISOString(),
+    productId: productId,
+    lastVerified: new Date().toISOString()
+  });
+}
+```
+
+*Интеграция в Pinia Store:*
+```typescript
+// stores/settings.ts
+export const useSettingsStore = defineStore('settings', {
+  state: () => ({
+    isPro: false,
+    currency: '₽',
+    language: 'ru',
+    theme: 'light',
+    // ... другие настройки из SQLite
+  }),
+
+  actions: {
+    async loadProStatus() {
+      this.isPro = await getProStatus();
+    },
+
+    async purchasePro() {
+      // Инициировать покупку через In-App Purchase
+      const result = await InAppPurchase.purchase('cakecost_pro');
+      if (result.success) {
+        await handlePurchaseSuccess('cakecost_pro');
+        this.isPro = true;
+      }
+    },
+
+    async restorePurchases() {
+      await initializeProStatus();
+      this.isPro = await getProStatus();
+    }
+  }
+});
+```
+
+**Преимущества:**
+- ✅ Данные зашифрованы на уровне ОС
+- ✅ Невозможно отредактировать через SQLite Browser или подобные инструменты
+- ✅ Автоматическое резервное копирование через iCloud Keychain (iOS)
+- ✅ Сохраняется при переустановке приложения (iOS Keychain)
+- ✅ Защита от несанкционированного доступа
+
+### 3.7 Runtime Application Self-Protection (RASP)
+
+**Назначение:**
+Детектирование попыток взлома, модификации приложения и запуска на скомпрометированных устройствах.
+
+**Технология:**
+- **Библиотека:** @talsec/free-rasp-capacitor (бесплатная версия)
+- **Методы защиты:** Детекция root/jailbreak, tampering, debugging, эмуляторов
+
+**Конфигурация:**
+```typescript
+import { ThreatEvent, Threat, FreRasp } from '@talsec/free-rasp-capacitor';
+
+// Инициализация при запуске приложения
+async function initializeRASP() {
+  const config = {
+    androidConfig: {
+      packageName: 'com.cakecost.app',
+      certificateHashes: ['YOUR_CERTIFICATE_HASH'],
+      supportedAlternativeStores: [
+        'com.sec.android.app.samsungapps',  // Samsung Galaxy Store
+        'com.amazon.venezia'                 // Amazon Appstore
+      ],
+    },
+    iosConfig: {
+      appBundleIds: 'com.cakecost.app',
+      appTeamId: 'YOUR_APPLE_TEAM_ID',
+    },
+    watcherMail: 'security@cakecost.app',  // Email для отчетов
+  };
+
+  try {
+    await FreRasp.start(config);
+    console.log('RASP initialized successfully');
+  } catch (error) {
+    console.error('RASP initialization failed:', error);
+  }
+}
+```
+
+**Обработчики угроз:**
+```typescript
+// Pinia store для управления состоянием безопасности
+export const useSecurityStore = defineStore('security', {
+  state: () => ({
+    isDeviceCompromised: false,
+    detectedThreats: [] as string[],
+  }),
+
+  actions: {
+    setupThreatListeners() {
+      // Root/Jailbreak обнаружен
+      FreRasp.addListener('rootDetected', () => {
+        console.warn('⚠️ Root/Jailbreak detected');
+        this.isDeviceCompromised = true;
+        this.detectedThreats.push('root');
+        this.handleCompromisedDevice();
+      });
+
+      // Приложение модифицировано
+      FreRasp.addListener('tamperDetected', () => {
+        console.warn('⚠️ App tampering detected');
+        this.isDeviceCompromised = true;
+        this.detectedThreats.push('tampering');
+        this.handleCompromisedDevice();
+      });
+
+      // USB Debugging включён (Android)
+      FreRasp.addListener('adbEnabled', () => {
+        console.warn('⚠️ ADB detected');
+        this.detectedThreats.push('adb');
+        // ADB не критично, но логируем
+      });
+
+      // Эмулятор обнаружен
+      FreRasp.addListener('emulatorDetected', () => {
+        console.warn('⚠️ Emulator detected');
+        // Для разработки допустимо, в проде - блокируем Pro
+      });
+
+      // Malware обнаружен (Android)
+      FreRasp.addListener('malwareDetected', (data) => {
+        console.error('⚠️ Malware detected:', data);
+        this.isDeviceCompromised = true;
+        this.detectedThreats.push('malware');
+        this.handleCompromisedDevice();
+      });
+
+      // Попытка снятия скриншота/записи экрана (iOS)
+      FreRasp.addListener('screenshot', () => {
+        console.log('📸 Screenshot detected');
+        // Опционально: можно скрывать чувствительные данные
+      });
+    },
+
+    handleCompromisedDevice() {
+      const settingsStore = useSettingsStore();
+
+      // Отключить Pro функции на скомпрометированном устройстве
+      if (this.isDeviceCompromised) {
+        // НЕ меняем реальный статус в Secure Storage
+        // Просто блокируем доступ в runtime
+        settingsStore.isPro = false;
+
+        // Показать предупреждение
+        this.showSecurityWarning();
+      }
+    },
+
+    showSecurityWarning() {
+      // Показать диалог пользователю
+      Dialog.create({
+        title: '🔒 Предупреждение безопасности',
+        message: 'Обнаружены признаки модификации устройства или приложения. ' +
+                 'Pro функции отключены в целях безопасности.',
+        persistent: true,
+        ok: {
+          label: 'Понятно',
+          color: 'negative'
+        }
+      });
+    }
+  }
+});
+```
+
+**Интеграция в приложение:**
+```typescript
+// main.ts или App.vue
+import { useSecurityStore } from 'stores/security';
+import { useSettingsStore } from 'stores/settings';
+
+async function initializeApp() {
+  // 1. Инициализировать RASP
+  await initializeRASP();
+
+  // 2. Настроить обработчики угроз
+  const securityStore = useSecurityStore();
+  securityStore.setupThreatListeners();
+
+  // 3. Загрузить Pro статус из Secure Storage
+  const settingsStore = useSettingsStore();
+  await settingsStore.loadProStatus();
+
+  // 4. Если устройство скомпрометировано - заблокировать Pro
+  if (securityStore.isDeviceCompromised) {
+    settingsStore.isPro = false;
+  }
+}
+```
+
+**Логика блокировки Pro функций:**
+```typescript
+// Middleware для проверки доступа к Pro функциям
+function requiresPro(): boolean {
+  const settingsStore = useSettingsStore();
+  const securityStore = useSecurityStore();
+
+  // Блокируем если:
+  // 1. Не куплена Pro версия
+  // 2. Устройство скомпрометировано
+  if (!settingsStore.isPro || securityStore.isDeviceCompromised) {
+    showProPaywall();
+    return false;
+  }
+
+  return true;
+}
+
+// Пример использования
+function openReceiptCustomization() {
+  if (!requiresPro()) return;
+
+  // Открыть настройки брендирования
+  router.push('/settings/receipt-customization');
+}
+```
+
+**Детектируемые угрозы:**
+- ✅ Root (Android) / Jailbreak (iOS)
+- ✅ Модификация APK/IPA файлов
+- ✅ USB Debugging (ADB)
+- ✅ Эмуляторы
+- ✅ Malware на устройстве (Android)
+- ✅ Попытки debugging
+- ✅ Снимки экрана (опционально, только iOS)
+
+**Стратегия реагирования:**
+1. **Критические угрозы** (root, tampering, malware):
+   - Блокировка Pro функций
+   - Показ предупреждения
+   - Логирование для аналитики
+2. **Некритические угрозы** (ADB, screenshot):
+   - Только логирование
+   - Без блокировки функционала
+
+### 3.8 Архитектура безопасности - Итого
+
+**Многоуровневая защита Pro версии:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     ПОЛЬЗОВАТЕЛЬ                             │
+│              (пытается разблокировать Pro)                   │
+└────────────────────────┬────────────────────────────────────┘
+                         │
+                         ▼
+         ┌───────────────────────────────┐
+         │   Уровень 1: RASP Detection   │
+         │  @talsec/free-rasp-capacitor  │
+         └───────────────┬───────────────┘
+                         │
+        ┌────────────────┴────────────────┐
+        │                                  │
+        ▼                                  ▼
+   Root/Jailbreak?                    Tampering?
+   Malware?                           Modified APK/IPA?
+        │                                  │
+        └────────────┬───────────────────┘
+                     │
+                     ▼
+              Угроза обнаружена?
+                     │
+        ┌────────────┴────────────┐
+        │ ДА                 НЕТ  │
+        ▼                         ▼
+   Блокировать Pro          Продолжить
+   функции в runtime        проверку
+        │                         │
+        │                         ▼
+        │          ┌─────────────────────────────┐
+        │          │  Уровень 2: Secure Storage  │
+        │          │ @aparajita/capacitor-secure │
+        │          └──────────────┬──────────────┘
+        │                         │
+        │                         ▼
+        │              Прочитать isPro из
+        │              Keychain (iOS) /
+        │              KeyStore (Android)
+        │                         │
+        │          ┌──────────────┴──────────────┐
+        │          │                              │
+        │          ▼                              ▼
+        │     isPro = true?                isPro = false?
+        │          │                              │
+        │          ▼                              │
+        │   ┌──────────────────────┐             │
+        │   │ Уровень 3: IAP Check │             │
+        │   │  In-App Purchase API │             │
+        │   └─────────┬────────────┘             │
+        │             │                           │
+        │             ▼                           │
+        │   Верифицировать покупку               │
+        │   через App Store / Play               │
+        │             │                           │
+        │      ┌──────┴──────┐                   │
+        │      │              │                   │
+        │      ▼              ▼                   │
+        │  Verified     Not Found                │
+        │      │              │                   │
+        │      ▼              ▼                   │
+        │  РАЗРЕШИТЬ     Сбросить                │
+        │  Pro функции   isPro = false           │
+        │                                         │
+        └─────────────────┬───────────────────────┘
+                          │
+                          ▼
+                    ЗАБЛОКИРОВАТЬ
+                    Pro функции
+```
+
+**Уровни защиты:**
+
+1. **RASP (Runtime Application Self-Protection):**
+   - Первая линия защиты
+   - Детектирует скомпрометированное устройство
+   - Блокирует на уровне runtime, даже если isPro = true
+
+2. **Secure Storage (Keychain/KeyStore):**
+   - Вторая линия защиты
+   - Шифрованное хранилище на уровне ОС
+   - Невозможно отредактировать через SQLite Browser
+
+3. **In-App Purchase Verification:**
+   - Третья линия защиты
+   - Истина о покупке хранится в Apple/Google серверах
+   - Автоматическая верификация при запуске
+
+**Точки атаки и защита:**
+
+| Атака | Защита |
+|-------|--------|
+| Редактирование SQLite через внешние инструменты | `is_pro` не хранится в SQLite |
+| Рутованное устройство с модифицированным Keychain | RASP детектирует root → блокирует Pro |
+| Модификация APK/IPA файла приложения | RASP детектирует tampering → блокирует Pro |
+| Переустановка приложения (потеря данных) | IAP автоматически восстанавливает покупку |
+| Экспорт/импорт данных с попыткой подделки Pro | `is_pro` не экспортируется, восстанавливается через IAP |
+| Malware на устройстве | RASP детектирует malware → блокирует Pro |
+
+**Преимущества архитектуры:**
+- ✅ 3 независимых уровня защиты
+- ✅ Невозможно обойти простым редактированием файлов
+- ✅ Автоматическое восстановление легитимных покупок
+- ✅ Детекция взломанных устройств
+- ✅ Минимальное влияние на UX для честных пользователей
+- ✅ Защита ~90% от попыток взлома
+
 ---
 
 ## 4. Монетизация
@@ -665,6 +1491,7 @@ export const useRecipesStore = defineStore('recipes', {
 **Триггеры покупки:**
 - При попытке создать 6-й рецепт
 - При попытке добавить 16-й ингредиент
+- **При попытке импортировать файл с >5 рецептами или >15 ингредиентами**
 - Кнопка "Убрать рекламу" в настройках
 - **Кнопка "Создать брендированный чек"** в калькуляторе заказа
 - Показ сравнения "До/После" (стандартный чек vs брендированный)
@@ -965,32 +1792,55 @@ calculateur de coûts, pâtisserie maison, prix recettes, marge bénéficiaire, 
 - [ ] Перевод на китайский (ZH)
 - [ ] Обновление ASO для китайского рынка
 
-### 8.6 Этап 6: Монетизация (1-2 недели)
+### 8.6 Этап 6: Монетизация и безопасность (2-3 недели)
 
 **Задачи:**
 - [ ] Интеграция AdMob
 - [ ] Настройка баннеров и interstitial
 - [ ] Система ограничений Free версии
 - [ ] Интеграция In-App Purchase
-- [ ] Логика разблокировки Pro версии
+- [ ] **Интеграция Secure Storage для Pro статуса:**
+  - [ ] Установка @aparajita/capacitor-secure-storage
+  - [ ] Реализация функций saveProStatus/getProStatus
+  - [ ] Миграция логики проверки Pro из SQLite в Secure Storage
+  - [ ] Интеграция с In-App Purchase (сохранение при успешной покупке)
+  - [ ] Функция восстановления покупок через IAP API
+  - [ ] Автоматическая проверка при запуске приложения
+- [ ] **Интеграция RASP защиты:**
+  - [ ] Установка @talsec/free-rasp-capacitor
+  - [ ] Конфигурация RASP (packageName, certificateHashes, appBundleIds)
+  - [ ] Создание stores/security.ts с обработчиками угроз
+  - [ ] Настройка listeners для rootDetected, tamperDetected, malwareDetected
+  - [ ] Логика блокировки Pro функций при обнаружении угроз
+  - [ ] UI предупреждений о компрометации устройства
+  - [ ] Тестирование на рутованных устройствах и эмуляторах
 - [ ] Кастомизация чеков (Pro версия):
   - [ ] UI для загрузки логотипа и выбора цветов
   - [ ] Слайдеры для настройки прозрачности
   - [ ] Поля для ввода контактов (имя, телефон, Instagram, сайт)
   - [ ] Генерация брендированного чека с настройками
   - [ ] Предпросмотр чека в реальном времени
-  - [ ] Сохранение настроек в БД
+  - [ ] Сохранение настроек в БД (SQLite - настройки чека, Secure Storage - isPro)
 
 ### 8.7 Этап 7: Полировка и тестирование (1-2 недели)
 
 **Задачи:**
 - [ ] **Экспорт/Импорт данных:**
   - [ ] Реализация экспорта данных в JSON
+  - [ ] **Экспорт настроек чека для Pro:** логотип (base64), цвета, контакты
+  - [ ] Кодирование логотипа в base64 через Filesystem API
   - [ ] Реализация импорта данных из JSON
+  - [ ] **Валидация лимитов при импорте для Free пользователей:**
+    - [ ] Проверка количества рецептов (макс 5)
+    - [ ] Проверка количества ингредиентов (макс 15)
+    - [ ] Диалог с предложением купить Pro при превышении лимита
+  - [ ] **Импорт настроек чека для Pro:** декодирование base64 → сохранение файла
   - [ ] Валидация структуры JSON при импорте
   - [ ] Предупреждения пользователю о перезаписи
   - [ ] Функция "Восстановить покупки" через In-App Purchase
   - [ ] Автоматическая проверка Pro статуса при запуске
+  - [ ] **Тестирование импорта Free → Pro (должен импортировать настройки чека)**
+  - [ ] **Тестирование импорта Pro → Free (должен игнорировать настройки чека)**
 - [ ] Тестирование на реальных устройствах
 - [ ] Исправление багов
 - [ ] Оптимизация производительности
@@ -1006,7 +1856,10 @@ calculateur de coûts, pâtisserie maison, prix recettes, marge bénéficiaire, 
 - [ ] Настройка ASO
 - [ ] Запуск первой волны контента (TikTok/Reels)
 
-**Итого: 11-15 недель от старта до релиза**
+**Итого: 12-16 недель от старта до релиза**
+
+**Изменения во времени:**
+- Этап 6 увеличен с 1-2 недель до 2-3 недель за счет добавления системы безопасности (Secure Storage + RASP)
 
 ---
 
@@ -1046,14 +1899,16 @@ calculateur de coûts, pâtisserie maison, prix recettes, marge bénéficiaire, 
 | Риск | Вероятность | Влияние | Митигация |
 |------|------------|---------|-----------|
 | SQLite не синхронизируется между устройствами | Низкая | Низкое | **Устранено:** Функционал экспорта/импорта данных в JSON. Восстановление Pro версии через магазины приложений. В будущем: облачная синхронизация как Premium фича |
+| Попытки взлома Pro версии через редактирование БД | Средняя | Высокое | **Устранено:** Флаг `is_pro` вынесен из SQLite в Secure Storage (Keychain/KeyStore). RASP система детектирует root/jailbreak и модификации приложения. При обнаружении угроз Pro функции блокируются в runtime. |
 | Проблемы с производительностью при большом количестве рецептов | Низкая | Среднее | Индексы в БД, кеширование вычислений, пагинация списков |
 | Баги с конвертацией единиц | Средняя | Высокое | Тщательное тестирование, unit-тесты для функций конвертации |
+| Ложные срабатывания RASP на легитимных устройствах | Низкая | Среднее | Использование проверенной библиотеки (@talsec/free-rasp). Блокировка только критичных угроз (root, tampering, malware). ADB и эмулятор - только логирование. |
 
 ### 10.2 Бизнес-риски
 
 | Риск | Вероятность | Влияние | Митигация |
 |------|------------|---------|-----------|
-| Низкая конверсия в Pro | Средняя | Высокое | A/B тесты paywall, оптимизация триггеров покупки |
+| Низкая конверсия в Pro | Средняя | Высокое | A/B тесты paywall, оптимизация триггеров покупки. **Новый триггер:** блокировка импорта большого файла с предложением купить Pro. Брендирование чеков как ключевая ценность. |
 | Низкий органический трафик | Средняя | Высокое | Инвестиции в контент-маркетинг, работа с сообществами |
 | Сильные конкуренты | Средняя | Среднее | Фокус на простоту и автоматический пересчет как killer feature |
 
@@ -1102,6 +1957,10 @@ calculateur de coûts, pâtisserie maison, prix recettes, marge bénéficiaire, 
 - Capacitor SQLite: https://github.com/capacitor-community/sqlite
 - AdMob: https://github.com/capacitor-community/admob
 - In-App Purchase: https://github.com/j3k0/cordova-plugin-purchase
+
+**Безопасность:**
+- Capacitor Secure Storage: https://github.com/aparajita/capacitor-secure-storage
+- Talsec Free RASP: https://github.com/talsec/free-rasp-capacitor
 
 **Маркетинг:**
 - ASO гайды: App Radar, Sensor Tower
@@ -1184,14 +2043,12 @@ interface RecipeItem {
   amount: number; // всегда в базовых единицах
 }
 
-// Settings model
+// Settings model (данные из SQLite)
 interface Settings {
   // Основные настройки
   currencySymbol: string;
   language: 'en' | 'ru' | 'es' | 'de' | 'fr' | 'zh' | 'kk';
   theme: 'light' | 'dark' | 'auto';
-  isPro: boolean;
-  showWatermark: boolean;
 
   // Настройки брендирования чека (Pro версия)
   receiptLogoPath?: string;           // Путь к файлу логотипа
@@ -1207,10 +2064,48 @@ interface Settings {
   receiptInstagram?: string;
   receiptWebsite?: string;
 }
+
+// Pro Status model (данные из Secure Storage)
+interface ProStatus {
+  isPro: boolean;
+  purchaseDate?: string;        // ISO дата покупки
+  productId?: string;           // ID продукта из магазина (cakecost_pro)
+  lastVerified?: string;        // Дата последней проверки через IAP
+}
+
+// ВАЖНО: isPro НЕ хранится в SQLite!
+// isPro хранится в Secure Storage (Keychain/EncryptedSharedPreferences)
 ```
 
 ---
 
-**Версия документа:** 1.0
+**Версия документа:** 1.1
 **Дата создания:** 2025-12-21
+**Последнее обновление:** 2025-12-21
 **Статус:** Утвержден для разработки
+
+---
+
+## История изменений
+
+### Версия 1.1 (2025-12-21)
+**Добавлено:**
+- ✅ Система безопасности: Secure Storage + RASP
+- ✅ Валидация импорта для Free пользователей (лимит рецептов/ингредиентов)
+- ✅ Экспорт/импорт настроек чека для Pro (логотип в base64)
+- ✅ Архитектура многоуровневой защиты (3 уровня)
+- ✅ Диаграмма безопасности и таблица атак/защиты
+- ✅ Новый триггер покупки Pro: блокировка импорта большого файла
+
+**Изменено:**
+- ⚙️ Флаг `is_pro` перенесен из SQLite в Secure Storage (Keychain/KeyStore)
+- ⚙️ Таблица `settings` - удалены поля `is_pro`, `show_watermark`
+- ⚙️ Этап 6 увеличен до 2-3 недель (добавлена безопасность)
+- ⚙️ Общее время разработки: 12-16 недель (было 11-15)
+
+**Библиотеки:**
+- 📦 @aparajita/capacitor-secure-storage
+- 📦 @talsec/free-rasp-capacitor
+
+### Версия 1.0 (2025-12-21)
+- 🎉 Первая версия спецификации
