@@ -1,0 +1,34 @@
+import type { SQLiteDBConnection } from '@capacitor-community/sqlite'
+import { initializeDatabase } from './schema'
+
+let dbInstance: SQLiteDBConnection | null = null
+
+/**
+ * Get database instance (singleton)
+ * Initializes database on first call
+ */
+export async function getDatabase(): Promise<SQLiteDBConnection> {
+  if (!dbInstance) {
+    dbInstance = await initializeDatabase('cakecost.db')
+  }
+  return dbInstance
+}
+
+/**
+ * Close database connection
+ * Useful for testing and cleanup
+ */
+export async function closeDatabase(): Promise<void> {
+  if (dbInstance) {
+    await dbInstance.close()
+    dbInstance = null
+  }
+}
+
+/**
+ * Reset database instance
+ * Useful for testing
+ */
+export function resetDatabaseInstance(): void {
+  dbInstance = null
+}
