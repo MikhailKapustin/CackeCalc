@@ -1080,15 +1080,1133 @@ describe('Reactive Recipe Recalculation', () => {
 })
 ```
 
+### 3.3 Component тесты для RecipeForm (конструктор рецепта)
+
+```typescript
+// src/__tests__/components/recipes/RecipeForm.test.ts
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import { Quasar } from 'quasar'
+import RecipeForm from '@/components/recipes/RecipeForm.vue'
+import { useIngredientsStore } from '@/stores/ingredients'
+
+describe('RecipeForm', () => {
+  let wrapper: any
+  let ingredientsStore: any
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    ingredientsStore = useIngredientsStore()
+
+    // Подготовка тестовых ингредиентов
+    ingredientsStore.ingredients = [
+      { id: 1, name: 'Мука', purchasePrice: 120, purchaseAmount: 2, purchaseUnit: 'kg', type: 'weight', pricePerBaseUnit: 0.06 },
+      { id: 2, name: 'Сахар', purchasePrice: 80, purchaseAmount: 1, purchaseUnit: 'kg', type: 'weight', pricePerBaseUnit: 0.08 },
+      { id: 3, name: 'Яйца', purchasePrice: 90, purchaseAmount: 1, purchaseUnit: 'tens', type: 'count', pricePerBaseUnit: 9 }
+    ]
+
+    wrapper = mount(RecipeForm, {
+      global: {
+        plugins: [createPinia(), Quasar]
+      }
+    })
+  })
+
+  describe('Form Fields', () => {
+    it('should render all required form fields', () => {
+      expect(wrapper.find('[data-test="recipe-name"]').exists()).toBe(true)
+      expect(wrapper.find('[data-test="recipe-description"]').exists()).toBe(true)
+      expect(wrapper.find('[data-test="selling-price"]').exists()).toBe(true)
+      expect(wrapper.find('[data-test="selling-unit"]').exists()).toBe(true)
+      expect(wrapper.find('[data-test="ingredients-section"]').exists()).toBe(true)
+    })
+
+    it('should validate required recipe name', async () => {
+      await wrapper.find('[data-test="recipe-name"]').setValue('')
+      await wrapper.find('form').trigger('submit')
+
+      expect(wrapper.text()).toContain('Название обязательно')
+    })
+
+    it('should validate selling price as positive number', async () => {
+      await wrapper.find('[data-test="selling-price"]').setValue('-100')
+      await wrapper.find('form').trigger('submit')
+
+      expect(wrapper.text()).toContain('Цена должна быть положительным числом')
+    })
+
+    it('should have default selling unit as kg', () => {
+      const sellingUnitSelect = wrapper.find('[data-test="selling-unit"]')
+      expect(sellingUnitSelect.element.value).toBe('kg')
+    })
+  })
+
+  describe('Ingredient Management', () => {
+    it('should show button to add ingredient to recipe', () => {
+      expect(wrapper.find('[data-test="add-ingredient-button"]').exists()).toBe(true)
+    })
+
+    it('should display ingredient selector when adding ingredient', async () => {
+      await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
+
+      expect(wrapper.find('[data-test="ingredient-selector"]').exists()).toBe(true)
+    })
+
+    it('should populate selector with available ingredients', async () => {
+      await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
+
+      const options = wrapper.findAll('[data-test="ingredient-option"]')
+      expect(options).toHaveLength(3)
+      expect(options[0].text()).toContain('Мука')
+      expect(options[1].text()).toContain('Сахар')
+      expect(options[2].text()).toContain('Яйца')
+    })
+
+    it('should add ingredient to recipe items list', async () => {
+      await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
+      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
+      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+      await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
+
+      const items = wrapper.findAll('[data-test="recipe-item"]')
+      expect(items).toHaveLength(1)
+      expect(items[0].text()).toContain('Мука')
+      expect(items[0].text()).toContain('500 г')
+    })
+
+    it('should allow updating ingredient amount', async () => {
+      // Добавляем ингредиент
+      await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
+      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
+      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+      await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
+
+      // Изменяем количество
+      await wrapper.find('[data-test="edit-item-amount"]').setValue('600')
+
+      const item = wrapper.find('[data-test="recipe-item"]')
+      expect(item.text()).toContain('600 г')
+    })
+
+    it('should remove ingredient from recipe', async () => {
+      // Добавляем ингредиент
+      await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
+      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
+      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+      await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
+
+      expect(wrapper.findAll('[data-test="recipe-item"]')).toHaveLength(1)
+
+      // Удаляем
+      await wrapper.find('[data-test="remove-item-button"]').trigger('click')
+
+      expect(wrapper.findAll('[data-test="recipe-item"]')).toHaveLength(0)
+    })
+
+    it('should prevent adding same ingredient twice', async () => {
+      // Добавляем мука первый раз
+      await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
+      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
+      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+      await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
+
+      // Пытаемся добавить мука снова
+      await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
+
+      const selector = wrapper.find('[data-test="ingredient-selector"]')
+      const options = selector.findAll('option')
+
+      // Мука не должна быть в списке доступных
+      expect(options.some(opt => opt.text().includes('Мука'))).toBe(false)
+    })
+
+    it('should display amounts in correct units based on ingredient type', async () => {
+      // Добавляем мука (вес - граммы)
+      await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
+      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
+      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+      await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
+
+      // Добавляем яйца (штуки)
+      await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
+      await wrapper.find('[data-test="ingredient-selector"]').setValue('3')
+      await wrapper.find('[data-test="ingredient-amount"]').setValue('5')
+      await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
+
+      const items = wrapper.findAll('[data-test="recipe-item"]')
+      expect(items[0].text()).toContain('500 г')
+      expect(items[1].text()).toContain('5 шт')
+    })
+  })
+
+  describe('Cost Calculation', () => {
+    it('should calculate and display total cost automatically', async () => {
+      // Добавляем мука: 500г × 0.06₽ = 30₽
+      await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
+      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
+      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+      await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
+
+      expect(wrapper.find('[data-test="total-cost"]').text()).toContain('30')
+    })
+
+    it('should update cost when ingredient amount changes', async () => {
+      // Добавляем мука: 500г × 0.06₽ = 30₽
+      await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
+      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
+      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+      await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
+
+      expect(wrapper.find('[data-test="total-cost"]').text()).toContain('30')
+
+      // Меняем количество на 1000г × 0.06₽ = 60₽
+      await wrapper.find('[data-test="edit-item-amount"]').setValue('1000')
+
+      expect(wrapper.find('[data-test="total-cost"]').text()).toContain('60')
+    })
+
+    it('should calculate cost for multiple ingredients', async () => {
+      // Мука: 500г × 0.06₽ = 30₽
+      await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
+      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
+      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+      await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
+
+      // Сахар: 300г × 0.08₽ = 24₽
+      await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
+      await wrapper.find('[data-test="ingredient-selector"]').setValue('2')
+      await wrapper.find('[data-test="ingredient-amount"]').setValue('300')
+      await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
+
+      // Яйца: 5шт × 9₽ = 45₽
+      await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
+      await wrapper.find('[data-test="ingredient-selector"]').setValue('3')
+      await wrapper.find('[data-test="ingredient-amount"]').setValue('5')
+      await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
+
+      // Итого: 30 + 24 + 45 = 99₽
+      expect(wrapper.find('[data-test="total-cost"]').text()).toContain('99')
+    })
+  })
+
+  describe('Profit Calculation', () => {
+    it('should calculate and display profit when selling price is set', async () => {
+      // Себестоимость: 30₽
+      await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
+      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
+      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+      await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
+
+      // Цена продажи: 2000₽
+      await wrapper.find('[data-test="selling-price"]').setValue('2000')
+
+      // Прибыль: 2000 - 30 = 1970₽
+      expect(wrapper.find('[data-test="profit-amount"]').text()).toContain('1 970')
+    })
+
+    it('should calculate and display profit percentage', async () => {
+      // Себестоимость: 30₽
+      await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
+      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
+      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+      await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
+
+      // Цена продажи: 90₽
+      await wrapper.find('[data-test="selling-price"]').setValue('90')
+
+      // Маржа: ((90 - 30) / 30) × 100 = 200%
+      expect(wrapper.find('[data-test="profit-percent"]').text()).toContain('200%')
+    })
+
+    it('should show profit indicator with color coding', async () => {
+      // Себестоимость: 30₽
+      await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
+      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
+      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+      await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
+
+      // Цена продажи: 90₽ (маржа 200% - высокая)
+      await wrapper.find('[data-test="selling-price"]').setValue('90')
+
+      const profitIndicator = wrapper.find('[data-test="profit-indicator"]')
+      expect(profitIndicator.classes()).toContain('text-positive') // Зеленый для >50%
+    })
+
+    it('should warn when selling below cost', async () => {
+      // Себестоимость: 30₽
+      await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
+      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
+      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+      await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
+
+      // Цена продажи: 20₽ (убыток!)
+      await wrapper.find('[data-test="selling-price"]').setValue('20')
+
+      expect(wrapper.find('[data-test="warning"]').text()).toContain('Цена ниже себестоимости')
+      expect(wrapper.find('[data-test="profit-indicator"]').classes()).toContain('text-negative')
+    })
+  })
+
+  describe('Form Submission', () => {
+    it('should emit save event with correct recipe data', async () => {
+      await wrapper.find('[data-test="recipe-name"]').setValue('Торт Наполеон')
+      await wrapper.find('[data-test="recipe-description"]').setValue('Классический рецепт')
+      await wrapper.find('[data-test="selling-price"]').setValue('2500')
+      await wrapper.find('[data-test="selling-unit"]').setValue('kg')
+
+      // Добавляем ингредиент
+      await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
+      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
+      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+      await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
+
+      await wrapper.find('form').trigger('submit')
+
+      expect(wrapper.emitted('save')).toBeTruthy()
+      expect(wrapper.emitted('save')[0][0]).toEqual({
+        name: 'Торт Наполеон',
+        description: 'Классический рецепт',
+        sellingPrice: 2500,
+        sellingUnit: 'kg',
+        items: [
+          { ingredientId: 1, amount: 500 }
+        ]
+      })
+    })
+
+    it('should not submit form if no ingredients added', async () => {
+      await wrapper.find('[data-test="recipe-name"]').setValue('Торт')
+      await wrapper.find('[data-test="selling-price"]').setValue('2000')
+
+      await wrapper.find('form').trigger('submit')
+
+      expect(wrapper.text()).toContain('Добавьте хотя бы один ингредиент')
+      expect(wrapper.emitted('save')).toBeFalsy()
+    })
+  })
+
+  describe('Edit Mode', () => {
+    it('should prefill form when editing existing recipe', async () => {
+      const recipe = {
+        id: 1,
+        name: 'Торт Наполеон',
+        description: 'Классический рецепт',
+        sellingPrice: 2500,
+        sellingUnit: 'kg',
+        items: [
+          { ingredientId: 1, amount: 500 },
+          { ingredientId: 2, amount: 300 }
+        ]
+      }
+
+      wrapper = mount(RecipeForm, {
+        props: { recipe, mode: 'edit' },
+        global: {
+          plugins: [createPinia(), Quasar]
+        }
+      })
+
+      expect(wrapper.find('[data-test="recipe-name"]').element.value).toBe('Торт Наполеон')
+      expect(wrapper.find('[data-test="recipe-description"]').element.value).toBe('Классический рецепт')
+      expect(wrapper.find('[data-test="selling-price"]').element.value).toBe('2500')
+      expect(wrapper.findAll('[data-test="recipe-item"]')).toHaveLength(2)
+    })
+
+    it('should show "Сохранить" button in edit mode', () => {
+      const recipe = {
+        id: 1,
+        name: 'Торт',
+        items: [],
+        sellingPrice: 1000,
+        sellingUnit: 'kg'
+      }
+
+      wrapper = mount(RecipeForm, {
+        props: { recipe, mode: 'edit' },
+        global: {
+          plugins: [createPinia(), Quasar]
+        }
+      })
+
+      expect(wrapper.find('[data-test="save-button"]').text()).toBe('Сохранить')
+    })
+
+    it('should show "Создать" button in create mode', () => {
+      expect(wrapper.find('[data-test="save-button"]').text()).toBe('Создать рецепт')
+    })
+  })
+})
+```
+
+### 3.4 Component тесты для RecipeList
+
+```typescript
+// src/__tests__/components/recipes/RecipeList.test.ts
+import { describe, it, expect, beforeEach } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import { Quasar } from 'quasar'
+import RecipeList from '@/components/recipes/RecipeList.vue'
+import { useRecipesStore } from '@/stores/recipes'
+import { useIngredientsStore } from '@/stores/ingredients'
+
+describe('RecipeList', () => {
+  let wrapper: any
+  let recipesStore: any
+  let ingredientsStore: any
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    recipesStore = useRecipesStore()
+    ingredientsStore = useIngredientsStore()
+
+    // Подготовка тестовых ингредиентов
+    ingredientsStore.ingredients = [
+      { id: 1, name: 'Мука', purchasePrice: 120, purchaseAmount: 2, purchaseUnit: 'kg', type: 'weight', pricePerBaseUnit: 0.06 },
+      { id: 2, name: 'Сахар', purchasePrice: 80, purchaseAmount: 1, purchaseUnit: 'kg', type: 'weight', pricePerBaseUnit: 0.08 }
+    ]
+
+    wrapper = mount(RecipeList, {
+      global: {
+        plugins: [Quasar]
+      }
+    })
+  })
+
+  describe('Empty State', () => {
+    it('should display empty state when no recipes', () => {
+      expect(wrapper.find('[data-test="empty-state"]').exists()).toBe(true)
+      expect(wrapper.text()).toContain('Создайте первый рецепт')
+    })
+
+    it('should show add button in empty state', () => {
+      expect(wrapper.find('[data-test="add-recipe-button"]').exists()).toBe(true)
+    })
+  })
+
+  describe('Recipe Display', () => {
+    beforeEach(() => {
+      recipesStore.recipes = [
+        {
+          id: 1,
+          name: 'Торт Наполеон',
+          description: 'Классический рецепт',
+          items: [{ ingredientId: 1, amount: 500 }],
+          sellingPrice: 2500,
+          sellingUnit: 'kg'
+        },
+        {
+          id: 2,
+          name: 'Торт Медовик',
+          description: 'С медом',
+          items: [{ ingredientId: 2, amount: 300 }],
+          sellingPrice: 2000,
+          sellingUnit: 'kg'
+        }
+      ]
+    })
+
+    it('should display list of recipes', async () => {
+      await wrapper.vm.$nextTick()
+
+      const cards = wrapper.findAll('[data-test="recipe-card"]')
+      expect(cards).toHaveLength(2)
+    })
+
+    it('should display recipe name', async () => {
+      await wrapper.vm.$nextTick()
+
+      const cards = wrapper.findAll('[data-test="recipe-card"]')
+      expect(cards[0].text()).toContain('Торт Наполеон')
+      expect(cards[1].text()).toContain('Торт Медовик')
+    })
+
+    it('should display recipe cost', async () => {
+      await wrapper.vm.$nextTick()
+
+      const firstCard = wrapper.find('[data-test="recipe-card"]')
+      // Себестоимость: 500г × 0.06₽ = 30₽
+      expect(firstCard.find('[data-test="recipe-cost"]').text()).toContain('30')
+    })
+
+    it('should display selling price', async () => {
+      await wrapper.vm.$nextTick()
+
+      const firstCard = wrapper.find('[data-test="recipe-card"]')
+      expect(firstCard.find('[data-test="selling-price"]').text()).toContain('2 500')
+    })
+
+    it('should display profit margin', async () => {
+      await wrapper.vm.$nextTick()
+
+      const firstCard = wrapper.find('[data-test="recipe-card"]')
+      // Маржа: ((2500 - 30) / 30) × 100 ≈ 8233%
+      expect(firstCard.find('[data-test="profit-margin"]').exists()).toBe(true)
+    })
+  })
+
+  describe('Search Functionality', () => {
+    beforeEach(() => {
+      recipesStore.recipes = [
+        { id: 1, name: 'Торт Наполеон', items: [], sellingPrice: 2500, sellingUnit: 'kg' },
+        { id: 2, name: 'Торт Медовик', items: [], sellingPrice: 2000, sellingUnit: 'kg' },
+        { id: 3, name: 'Пирог яблочный', items: [], sellingPrice: 1500, sellingUnit: 'kg' }
+      ]
+    })
+
+    it('should display search input', async () => {
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.find('[data-test="search-input"]').exists()).toBe(true)
+    })
+
+    it('should filter recipes by name', async () => {
+      await wrapper.vm.$nextTick()
+
+      const searchInput = wrapper.find('[data-test="search-input"]')
+      await searchInput.setValue('торт')
+      await wrapper.vm.$nextTick()
+
+      const cards = wrapper.findAll('[data-test="recipe-card"]')
+      expect(cards).toHaveLength(2)
+      expect(cards[0].text()).toContain('Торт Наполеон')
+      expect(cards[1].text()).toContain('Торт Медовик')
+    })
+
+    it('should be case-insensitive when searching', async () => {
+      await wrapper.vm.$nextTick()
+
+      const searchInput = wrapper.find('[data-test="search-input"]')
+      await searchInput.setValue('НАПОЛЕОН')
+      await wrapper.vm.$nextTick()
+
+      const cards = wrapper.findAll('[data-test="recipe-card"]')
+      expect(cards).toHaveLength(1)
+      expect(cards[0].text()).toContain('Торт Наполеон')
+    })
+
+    it('should highlight search term in recipe name', async () => {
+      await wrapper.vm.$nextTick()
+
+      const searchInput = wrapper.find('[data-test="search-input"]')
+      await searchInput.setValue('наполеон')
+      await wrapper.vm.$nextTick()
+
+      const recipeName = wrapper.find('[data-test="recipe-name"]')
+      expect(recipeName.html()).toContain('<mark>')
+    })
+
+    it('should display no results message when search has no matches', async () => {
+      await wrapper.vm.$nextTick()
+
+      const searchInput = wrapper.find('[data-test="search-input"]')
+      await searchInput.setValue('несуществующий рецепт')
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.find('[data-test="no-results"]').exists()).toBe(true)
+      expect(wrapper.text()).toContain('Ничего не найдено по запросу')
+    })
+
+    it('should display count of found recipes', async () => {
+      await wrapper.vm.$nextTick()
+
+      const searchInput = wrapper.find('[data-test="search-input"]')
+      await searchInput.setValue('торт')
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.find('[data-test="results-count"]').text()).toContain('2 рецепта найдено')
+    })
+
+    it('should show clear button when search is active', async () => {
+      await wrapper.vm.$nextTick()
+
+      const searchInput = wrapper.find('[data-test="search-input"]')
+      await searchInput.setValue('торт')
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.find('[data-test="clear-search"]').exists()).toBe(true)
+    })
+
+    it('should clear search and show all recipes when clear button clicked', async () => {
+      await wrapper.vm.$nextTick()
+
+      const searchInput = wrapper.find('[data-test="search-input"]')
+      await searchInput.setValue('наполеон')
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.findAll('[data-test="recipe-card"]')).toHaveLength(1)
+
+      await wrapper.find('[data-test="clear-search"]').trigger('click')
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.findAll('[data-test="recipe-card"]')).toHaveLength(3)
+    })
+  })
+
+  describe('Recipe Actions', () => {
+    beforeEach(() => {
+      recipesStore.recipes = [
+        { id: 1, name: 'Торт Наполеон', items: [], sellingPrice: 2500, sellingUnit: 'kg' }
+      ]
+    })
+
+    it('should show edit button on recipe card', async () => {
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.find('[data-test="edit-button"]').exists()).toBe(true)
+    })
+
+    it('should emit edit event when edit button clicked', async () => {
+      await wrapper.vm.$nextTick()
+
+      await wrapper.find('[data-test="edit-button"]').trigger('click')
+
+      expect(wrapper.emitted('edit')).toBeTruthy()
+      expect(wrapper.emitted('edit')[0][0]).toBe(1)
+    })
+
+    it('should show "Calculate Order" button', async () => {
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.find('[data-test="calculate-button"]').exists()).toBe(true)
+    })
+
+    it('should emit calculate event when calculate button clicked', async () => {
+      await wrapper.vm.$nextTick()
+
+      await wrapper.find('[data-test="calculate-button"]').trigger('click')
+
+      expect(wrapper.emitted('calculate')).toBeTruthy()
+      expect(wrapper.emitted('calculate')[0][0]).toBe(1)
+    })
+
+    it('should show delete button on swipe left', async () => {
+      await wrapper.vm.$nextTick()
+
+      const card = wrapper.find('[data-test="recipe-card"]')
+      // Симулируем swipe left
+      await card.trigger('swipeleft')
+
+      expect(wrapper.find('[data-test="delete-button"]').exists()).toBe(true)
+    })
+
+    it('should show confirmation dialog before deleting', async () => {
+      await wrapper.vm.$nextTick()
+
+      const card = wrapper.find('[data-test="recipe-card"]')
+      await card.trigger('swipeleft')
+      await wrapper.find('[data-test="delete-button"]').trigger('click')
+
+      expect(wrapper.vm.showDeleteDialog).toBe(true)
+    })
+
+    it('should delete recipe after confirmation', async () => {
+      await wrapper.vm.$nextTick()
+
+      const card = wrapper.find('[data-test="recipe-card"]')
+      await card.trigger('swipeleft')
+      await wrapper.find('[data-test="delete-button"]').trigger('click')
+
+      // Подтверждаем удаление
+      await wrapper.vm.confirmDelete()
+
+      expect(recipesStore.recipes).toHaveLength(0)
+    })
+  })
+
+  describe('Reactive Updates', () => {
+    it('should update recipe cost when ingredient price changes', async () => {
+      recipesStore.recipes = [
+        {
+          id: 1,
+          name: 'Торт',
+          items: [{ ingredientId: 1, amount: 1000 }],
+          sellingPrice: 2000,
+          sellingUnit: 'kg'
+        }
+      ]
+
+      await wrapper.vm.$nextTick()
+
+      // Начальная себестоимость: 1000г × 0.06₽ = 60₽
+      expect(wrapper.find('[data-test="recipe-cost"]').text()).toContain('60')
+
+      // Меняем цену муки
+      ingredientsStore.ingredients[0].purchasePrice = 180
+      ingredientsStore.ingredients[0].pricePerBaseUnit = 0.09
+
+      await wrapper.vm.$nextTick()
+
+      // Новая себестоимость: 1000г × 0.09₽ = 90₽
+      expect(wrapper.find('[data-test="recipe-cost"]').text()).toContain('90')
+    })
+  })
+
+  describe('Profit Color Indicators', () => {
+    it('should show green indicator for high margin (>50%)', async () => {
+      recipesStore.recipes = [
+        {
+          id: 1,
+          name: 'Торт',
+          items: [{ ingredientId: 1, amount: 500 }], // 30₽
+          sellingPrice: 90, // Маржа: 200%
+          sellingUnit: 'kg'
+        }
+      ]
+
+      await wrapper.vm.$nextTick()
+
+      const indicator = wrapper.find('[data-test="profit-indicator"]')
+      expect(indicator.classes()).toContain('text-positive')
+    })
+
+    it('should show yellow indicator for medium margin (20-50%)', async () => {
+      recipesStore.recipes = [
+        {
+          id: 1,
+          name: 'Торт',
+          items: [{ ingredientId: 1, amount: 500 }], // 30₽
+          sellingPrice: 40, // Маржа: 33%
+          sellingUnit: 'kg'
+        }
+      ]
+
+      await wrapper.vm.$nextTick()
+
+      const indicator = wrapper.find('[data-test="profit-indicator"]')
+      expect(indicator.classes()).toContain('text-warning')
+    })
+
+    it('should show red indicator for low margin (<20%)', async () => {
+      recipesStore.recipes = [
+        {
+          id: 1,
+          name: 'Торт',
+          items: [{ ingredientId: 1, amount: 500 }], // 30₽
+          sellingPrice: 35, // Маржа: 16.7%
+          sellingUnit: 'kg'
+        }
+      ]
+
+      await wrapper.vm.$nextTick()
+
+      const indicator = wrapper.find('[data-test="profit-indicator"]')
+      expect(indicator.classes()).toContain('text-negative')
+    })
+  })
+})
+```
+
+### 3.5 Component тесты для RecipeCard
+
+```typescript
+// src/__tests__/components/recipes/RecipeCard.test.ts
+import { describe, it, expect, beforeEach } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import { Quasar } from 'quasar'
+import RecipeCard from '@/components/recipes/RecipeCard.vue'
+import { useIngredientsStore } from '@/stores/ingredients'
+
+describe('RecipeCard', () => {
+  let wrapper: any
+  let ingredientsStore: any
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    ingredientsStore = useIngredientsStore()
+
+    ingredientsStore.ingredients = [
+      { id: 1, name: 'Мука', purchasePrice: 120, purchaseAmount: 2, purchaseUnit: 'kg', type: 'weight', pricePerBaseUnit: 0.06 }
+    ]
+  })
+
+  describe('Basic Display', () => {
+    it('should display recipe name', () => {
+      const recipe = {
+        id: 1,
+        name: 'Торт Наполеон',
+        items: [],
+        sellingPrice: 2500,
+        sellingUnit: 'kg'
+      }
+
+      wrapper = mount(RecipeCard, {
+        props: { recipe },
+        global: {
+          plugins: [Quasar]
+        }
+      })
+
+      expect(wrapper.find('[data-test="recipe-name"]').text()).toBe('Торт Наполеон')
+    })
+
+    it('should display recipe description if provided', () => {
+      const recipe = {
+        id: 1,
+        name: 'Торт',
+        description: 'Классический рецепт',
+        items: [],
+        sellingPrice: 2000,
+        sellingUnit: 'kg'
+      }
+
+      wrapper = mount(RecipeCard, {
+        props: { recipe },
+        global: {
+          plugins: [Quasar]
+        }
+      })
+
+      expect(wrapper.find('[data-test="recipe-description"]').text()).toBe('Классический рецепт')
+    })
+
+    it('should display selling price with currency', () => {
+      const recipe = {
+        id: 1,
+        name: 'Торт',
+        items: [],
+        sellingPrice: 2500,
+        sellingUnit: 'kg'
+      }
+
+      wrapper = mount(RecipeCard, {
+        props: { recipe },
+        global: {
+          plugins: [Quasar]
+        }
+      })
+
+      expect(wrapper.find('[data-test="selling-price"]').text()).toContain('2 500 ₽')
+    })
+
+    it('should display selling unit', () => {
+      const recipe = {
+        id: 1,
+        name: 'Торт',
+        items: [],
+        sellingPrice: 2500,
+        sellingUnit: 'kg'
+      }
+
+      wrapper = mount(RecipeCard, {
+        props: { recipe },
+        global: {
+          plugins: [Quasar]
+        }
+      })
+
+      expect(wrapper.find('[data-test="selling-unit"]').text()).toContain('за кг')
+    })
+  })
+
+  describe('Cost and Profit Display', () => {
+    it('should display calculated cost', () => {
+      const recipe = {
+        id: 1,
+        name: 'Торт',
+        items: [{ ingredientId: 1, amount: 500 }], // 500г × 0.06₽ = 30₽
+        sellingPrice: 2000,
+        sellingUnit: 'kg'
+      }
+
+      wrapper = mount(RecipeCard, {
+        props: { recipe },
+        global: {
+          plugins: [Quasar]
+        }
+      })
+
+      expect(wrapper.find('[data-test="recipe-cost"]').text()).toContain('30 ₽')
+    })
+
+    it('should display profit amount', () => {
+      const recipe = {
+        id: 1,
+        name: 'Торт',
+        items: [{ ingredientId: 1, amount: 500 }], // Себестоимость: 30₽
+        sellingPrice: 2000,
+        sellingUnit: 'kg'
+      }
+
+      wrapper = mount(RecipeCard, {
+        props: { recipe },
+        global: {
+          plugins: [Quasar]
+        }
+      })
+
+      // Прибыль: 2000 - 30 = 1970₽
+      expect(wrapper.find('[data-test="profit-amount"]').text()).toContain('1 970 ₽')
+    })
+
+    it('should display profit percentage', () => {
+      const recipe = {
+        id: 1,
+        name: 'Торт',
+        items: [{ ingredientId: 1, amount: 500 }], // Себестоимость: 30₽
+        sellingPrice: 90,
+        sellingUnit: 'kg'
+      }
+
+      wrapper = mount(RecipeCard, {
+        props: { recipe },
+        global: {
+          plugins: [Quasar]
+        }
+      })
+
+      // Маржа: ((90 - 30) / 30) × 100 = 200%
+      expect(wrapper.find('[data-test="profit-percent"]').text()).toContain('200%')
+    })
+
+    it('should format large profit numbers with spaces', () => {
+      const recipe = {
+        id: 1,
+        name: 'Торт',
+        items: [{ ingredientId: 1, amount: 100 }], // Себестоимость: 6₽
+        sellingPrice: 10000,
+        sellingUnit: 'kg'
+      }
+
+      wrapper = mount(RecipeCard, {
+        props: { recipe },
+        global: {
+          plugins: [Quasar]
+        }
+      })
+
+      // Прибыль: 9994₽
+      expect(wrapper.find('[data-test="profit-amount"]').text()).toContain('9 994')
+    })
+  })
+
+  describe('Profit Color Indicators', () => {
+    it('should use green color for high profit margin (>50%)', () => {
+      const recipe = {
+        id: 1,
+        name: 'Торт',
+        items: [{ ingredientId: 1, amount: 500 }], // 30₽
+        sellingPrice: 90, // Маржа: 200%
+        sellingUnit: 'kg'
+      }
+
+      wrapper = mount(RecipeCard, {
+        props: { recipe },
+        global: {
+          plugins: [Quasar]
+        }
+      })
+
+      const indicator = wrapper.find('[data-test="profit-indicator"]')
+      expect(indicator.classes()).toContain('text-positive')
+    })
+
+    it('should use yellow color for medium profit margin (20-50%)', () => {
+      const recipe = {
+        id: 1,
+        name: 'Торт',
+        items: [{ ingredientId: 1, amount: 500 }], // 30₽
+        sellingPrice: 40, // Маржа: ~33%
+        sellingUnit: 'kg'
+      }
+
+      wrapper = mount(RecipeCard, {
+        props: { recipe },
+        global: {
+          plugins: [Quasar]
+        }
+      })
+
+      const indicator = wrapper.find('[data-test="profit-indicator"]')
+      expect(indicator.classes()).toContain('text-warning')
+    })
+
+    it('should use red color for low profit margin (<20%)', () => {
+      const recipe = {
+        id: 1,
+        name: 'Торт',
+        items: [{ ingredientId: 1, amount: 500 }], // 30₽
+        sellingPrice: 35, // Маржа: ~17%
+        sellingUnit: 'kg'
+      }
+
+      wrapper = mount(RecipeCard, {
+        props: { recipe },
+        global: {
+          plugins: [Quasar]
+        }
+      })
+
+      const indicator = wrapper.find('[data-test="profit-indicator"]')
+      expect(indicator.classes()).toContain('text-negative')
+    })
+
+    it('should use red color for negative profit (loss)', () => {
+      const recipe = {
+        id: 1,
+        name: 'Торт',
+        items: [{ ingredientId: 1, amount: 500 }], // 30₽
+        sellingPrice: 20, // Убыток: -10₽
+        sellingUnit: 'kg'
+      }
+
+      wrapper = mount(RecipeCard, {
+        props: { recipe },
+        global: {
+          plugins: [Quasar]
+        }
+      })
+
+      const indicator = wrapper.find('[data-test="profit-indicator"]')
+      expect(indicator.classes()).toContain('text-negative')
+    })
+  })
+
+  describe('Action Buttons', () => {
+    it('should display edit button', () => {
+      const recipe = {
+        id: 1,
+        name: 'Торт',
+        items: [],
+        sellingPrice: 2000,
+        sellingUnit: 'kg'
+      }
+
+      wrapper = mount(RecipeCard, {
+        props: { recipe },
+        global: {
+          plugins: [Quasar]
+        }
+      })
+
+      expect(wrapper.find('[data-test="edit-button"]').exists()).toBe(true)
+    })
+
+    it('should emit edit event with recipe id when edit clicked', async () => {
+      const recipe = {
+        id: 1,
+        name: 'Торт',
+        items: [],
+        sellingPrice: 2000,
+        sellingUnit: 'kg'
+      }
+
+      wrapper = mount(RecipeCard, {
+        props: { recipe },
+        global: {
+          plugins: [Quasar]
+        }
+      })
+
+      await wrapper.find('[data-test="edit-button"]').trigger('click')
+
+      expect(wrapper.emitted('edit')).toBeTruthy()
+      expect(wrapper.emitted('edit')[0][0]).toBe(1)
+    })
+
+    it('should display "Calculate Order" button', () => {
+      const recipe = {
+        id: 1,
+        name: 'Торт',
+        items: [],
+        sellingPrice: 2000,
+        sellingUnit: 'kg'
+      }
+
+      wrapper = mount(RecipeCard, {
+        props: { recipe },
+        global: {
+          plugins: [Quasar]
+        }
+      })
+
+      expect(wrapper.find('[data-test="calculate-button"]').exists()).toBe(true)
+      expect(wrapper.find('[data-test="calculate-button"]').text()).toContain('Посчитать заказ')
+    })
+
+    it('should emit calculate event with recipe id when calculate clicked', async () => {
+      const recipe = {
+        id: 1,
+        name: 'Торт',
+        items: [],
+        sellingPrice: 2000,
+        sellingUnit: 'kg'
+      }
+
+      wrapper = mount(RecipeCard, {
+        props: { recipe },
+        global: {
+          plugins: [Quasar]
+        }
+      })
+
+      await wrapper.find('[data-test="calculate-button"]').trigger('click')
+
+      expect(wrapper.emitted('calculate')).toBeTruthy()
+      expect(wrapper.emitted('calculate')[0][0]).toBe(1)
+    })
+  })
+
+  describe('Compact Mode', () => {
+    it('should hide description in compact mode', () => {
+      const recipe = {
+        id: 1,
+        name: 'Торт',
+        description: 'Классический рецепт',
+        items: [],
+        sellingPrice: 2000,
+        sellingUnit: 'kg'
+      }
+
+      wrapper = mount(RecipeCard, {
+        props: { recipe, compact: true },
+        global: {
+          plugins: [Quasar]
+        }
+      })
+
+      expect(wrapper.find('[data-test="recipe-description"]').exists()).toBe(false)
+    })
+
+    it('should show only essential info in compact mode', () => {
+      const recipe = {
+        id: 1,
+        name: 'Торт',
+        items: [{ ingredientId: 1, amount: 500 }],
+        sellingPrice: 2000,
+        sellingUnit: 'kg'
+      }
+
+      wrapper = mount(RecipeCard, {
+        props: { recipe, compact: true },
+        global: {
+          plugins: [Quasar]
+        }
+      })
+
+      expect(wrapper.find('[data-test="recipe-name"]').exists()).toBe(true)
+      expect(wrapper.find('[data-test="selling-price"]').exists()).toBe(true)
+      expect(wrapper.find('[data-test="profit-percent"]').exists()).toBe(true)
+    })
+  })
+})
+```
+
 ### Контрольная точка Фазы 3
 
 **Критерии завершения:**
 - ✅ Все тесты для recipes store проходят
 - ✅ Реактивный пересчет работает корректно
+- ✅ **Component тесты для RecipeForm проходят**
+- ✅ **Component тесты для RecipeList проходят**
+- ✅ **Component тесты для RecipeCard проходят**
 - ✅ Покрытие кода тестами > 80%
 - ✅ Можно создавать, редактировать, удалять рецепты
 - ✅ Себестоимость и маржа рассчитываются автоматически
 - ✅ Изменение цены ингредиента обновляет все связанные рецепты
+- ✅ **UI конструктора рецептов полностью функционален**
 
 ---
 
