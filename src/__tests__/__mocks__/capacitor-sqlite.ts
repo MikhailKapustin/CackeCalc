@@ -149,13 +149,64 @@ class MockSQLiteDBConnection {
     // Handle INSERT/UPDATE/DELETE
     if (sql.includes('INSERT INTO ingredients')) {
       const ingredientsData = this.tables.get('ingredients') || []
-      ingredientsData.push({
-        name: 'Flour',
+      const newId = ingredientsData.length + 1
+
+      // Create ingredient object from values if provided
+      const newIngredient: any = {
+        id: newId,
         created_at: Math.floor(Date.now() / 1000),
         updated_at: Math.floor(Date.now() / 1000)
-      })
+      }
+
+      // Map values to columns based on typical INSERT statement
+      if (values && values.length >= 6) {
+        newIngredient.name = values[0]
+        newIngredient.purchase_price = values[1]
+        newIngredient.purchase_amount = values[2]
+        newIngredient.purchase_unit = values[3]
+        newIngredient.type = values[4]
+        newIngredient.price_per_base_unit = values[5]
+      }
+
+      ingredientsData.push(newIngredient)
       this.tables.set('ingredients', ingredientsData)
-      return { changes: { changes: 1, lastId: ingredientsData.length } }
+      return { changes: { changes: 1, lastId: newId } }
+    }
+
+    if (sql.includes('UPDATE ingredients')) {
+      const ingredientsData = this.tables.get('ingredients') || []
+
+      if (values && values.length >= 7) {
+        const id = values[6] // Last parameter is the id
+        const index = ingredientsData.findIndex((ing: any) => ing.id === id)
+
+        if (index !== -1) {
+          ingredientsData[index] = {
+            ...ingredientsData[index],
+            name: values[0],
+            purchase_price: values[1],
+            purchase_amount: values[2],
+            purchase_unit: values[3],
+            type: values[4],
+            price_per_base_unit: values[5],
+            updated_at: Math.floor(Date.now() / 1000)
+          }
+        }
+      }
+
+      return { changes: { changes: 1 } }
+    }
+
+    if (sql.includes('DELETE FROM ingredients')) {
+      const ingredientsData = this.tables.get('ingredients') || []
+
+      if (values && values.length > 0) {
+        const id = values[0]
+        const filtered = ingredientsData.filter((ing: any) => ing.id !== id)
+        this.tables.set('ingredients', filtered)
+      }
+
+      return { changes: { changes: 1 } }
     }
 
     if (sql.includes('INSERT INTO settings')) {

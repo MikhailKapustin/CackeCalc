@@ -1,24 +1,21 @@
 <template>
   <div id="q-app">
-    <q-layout view="lHh Lpr lFf">
-      <q-header elevated>
-        <q-toolbar>
-          <q-toolbar-title>
-            CakeCost
-          </q-toolbar-title>
-        </q-toolbar>
-      </q-header>
+    <QLayout view="lHh Lpr lFf">
+      <QHeader elevated>
+        <QToolbar>
+          <QToolbarTitle>
+            CakeCost - Калькулятор себестоимости
+          </QToolbarTitle>
+        </QToolbar>
+      </QHeader>
 
-      <q-page-container>
-        <div class="q-pa-md">
-          <h1>Welcome to CakeCost</h1>
-          <p>Recipe pricing calculator for confectioners</p>
-        </div>
-      </q-page-container>
-    </q-layout>
+      <QPageContainer>
+        <IngredientsPage />
+      </QPageContainer>
+    </QLayout>
   </div>
 </template>
 
 <script setup lang="ts">
-// App component
+import IngredientsPage from '@/pages/IngredientsPage.vue'
 </script>
