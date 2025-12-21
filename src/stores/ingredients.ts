@@ -147,8 +147,9 @@ export const useIngredientsStore = defineStore('ingredients', () => {
         }
       }
 
-      // TODO: Trigger recipe recalculation when recipes module is implemented
-      // await useRecipesStore().recalculateRecipesUsingIngredient(id)
+      // Trigger recipe recalculation
+      const { useRecipesStore } = await import('./recipes')
+      await useRecipesStore().recalculateRecipesUsingIngredient(id)
     } catch (error) {
       console.error('Error updating ingredient:', error)
       throw error
