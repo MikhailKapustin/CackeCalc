@@ -28,6 +28,7 @@
     "@capacitor/cli": "^8.0.0",
     "@capacitor/core": "^8.0.0",
     "@capacitor/ios": "^8.0.0",
+    "@capacitor/share": "^8.0.0",
     "@quasar/extras": "^1.17.0",
     "pinia": "^3.0.4",
     "quasar": "^2.18.6"

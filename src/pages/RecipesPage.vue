@@ -64,6 +64,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
+import { Share } from '@capacitor/share'
+import { Capacitor } from '@capacitor/core'
 import { useRecipesStore } from '@/stores/recipes'
 import { useIngredientsStore } from '@/stores/ingredients'
 import RecipeList from '@/components/recipes/RecipeList.vue'
@@ -161,40 +163,54 @@ function handleCalculatorClose() {
 
 async function handleShareReceipt(receiptBlob: Blob) {
   try {
-    // Check if Web Share API is available
-    if (navigator.share && navigator.canShare) {
-      // Create a File from the Blob for sharing
-      const file = new File([receiptBlob], 'receipt.png', { type: 'image/png' })
+    // Convert blob to base64 for Capacitor Share
+    const base64Data = await blobToBase64(receiptBlob)
 
-      // Check if files can be shared
-      if (navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: 'Чек заказа',
-          text: 'Расчет стоимости заказа'
-        })
-        $q.notify({
-          type: 'positive',
-          message: 'Чек отправлен',
-          icon: 'share'
-        })
-      } else {
-        // Fallback: download the image
-        downloadImage(receiptBlob)
-      }
-    } else {
-      // Fallback: download the image
-      downloadImage(receiptBlob)
-    }
+    console.log('Platform:', Capacitor.getPlatform())
+    console.log('Attempting to share receipt image')
+
+    // Use Capacitor Share API (works on native platforms)
+    await Share.share({
+      title: 'Чек заказа',
+      text: 'Расчет стоимости заказа',
+      url: base64Data,
+      dialogTitle: 'Отправить чек клиенту'
+    })
+
+    console.log('Share successful')
+    $q.notify({
+      type: 'positive',
+      message: 'Чек отправлен',
+      icon: 'share'
+    })
   } catch (error) {
-    // If sharing was cancelled or failed
-    if (error instanceof Error && error.name !== 'AbortError') {
-      $q.notify({
-        type: 'negative',
-        message: 'Ошибка при отправке чека'
-      })
+    console.error('Share error:', error)
+
+    // If sharing was cancelled by user, don't show error
+    if (error instanceof Error && error.message.includes('cancelled')) {
+      return
     }
+
+    // Fallback for web platform or if share failed
+    console.log('Falling back to download')
+    downloadImage(receiptBlob)
   }
+}
+
+// Helper function to convert Blob to base64 data URL
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result)
+      } else {
+        reject(new Error('Failed to convert blob to base64'))
+      }
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
 }
 
 function downloadImage(blob: Blob) {
