@@ -65,6 +65,7 @@
 import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { Share } from '@capacitor/share'
+import { Filesystem, Directory } from '@capacitor/filesystem'
 import { Capacitor } from '@capacitor/core'
 import { useRecipesStore } from '@/stores/recipes'
 import { useIngredientsStore } from '@/stores/ingredients'
@@ -162,36 +163,77 @@ function handleCalculatorClose() {
 }
 
 async function handleShareReceipt(receiptBlob: Blob) {
+  const platform = Capacitor.getPlatform()
+  console.log('Platform:', platform)
+  console.log('Attempting to share receipt image')
+
   try {
-    // Convert blob to base64 for Capacitor Share
-    const base64Data = await blobToBase64(receiptBlob)
+    // On native platforms, save to file system and share
+    if (platform === 'android' || platform === 'ios') {
+      // Convert blob to base64
+      const base64Data = await blobToBase64(receiptBlob)
 
-    console.log('Platform:', Capacitor.getPlatform())
-    console.log('Attempting to share receipt image')
+      // Remove data URL prefix to get pure base64
+      const base64String = base64Data.split(',')[1]
 
-    // Use Capacitor Share API (works on native platforms)
-    await Share.share({
-      title: 'Чек заказа',
-      text: 'Расчет стоимости заказа',
-      url: base64Data,
-      dialogTitle: 'Отправить чек клиенту'
-    })
+      // Save to cache directory
+      const fileName = `receipt-${Date.now()}.png`
 
-    console.log('Share successful')
-    $q.notify({
-      type: 'positive',
-      message: 'Чек отправлен',
-      icon: 'share'
-    })
+      console.log('Writing file to cache:', fileName)
+      const result = await Filesystem.writeFile({
+        path: fileName,
+        data: base64String,
+        directory: Directory.Cache
+      })
+
+      console.log('File written:', result.uri)
+
+      // Share the file using Capacitor Share
+      await Share.share({
+        title: 'Чек заказа',
+        text: 'Расчет стоимости заказа',
+        url: result.uri,
+        dialogTitle: 'Отправить чек клиенту'
+      })
+
+      console.log('Share successful')
+
+      // Clean up temp file after a delay
+      setTimeout(async () => {
+        try {
+          await Filesystem.deleteFile({
+            path: fileName,
+            directory: Directory.Cache
+          })
+          console.log('Temp file deleted')
+        } catch (e) {
+          console.log('Could not delete temp file:', e)
+        }
+      }, 5000)
+
+      $q.notify({
+        type: 'positive',
+        message: 'Чек отправлен',
+        icon: 'share'
+      })
+    } else {
+      // Web platform - use download
+      console.log('Web platform, using download')
+      downloadImage(receiptBlob)
+    }
   } catch (error) {
     console.error('Share error:', error)
 
     // If sharing was cancelled by user, don't show error
-    if (error instanceof Error && error.message.includes('cancelled')) {
+    if (error instanceof Error && (
+      error.message.includes('cancelled') ||
+      error.message.includes('Share canceled')
+    )) {
+      console.log('Share cancelled by user')
       return
     }
 
-    // Fallback for web platform or if share failed
+    // Fallback to download
     console.log('Falling back to download')
     downloadImage(receiptBlob)
   }
