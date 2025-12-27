@@ -45,9 +45,14 @@
       </div>
 
       <!-- Receipt Preview -->
-      <div v-if="selectedRecipe && weight > 0" class="q-mt-md q-pa-md bg-grey-2 rounded-borders">
+      <div v-if="selectedRecipe && weight > 0 && receiptImageUrl" class="q-mt-md q-pa-md bg-grey-2 rounded-borders">
         <div class="text-subtitle2 q-mb-sm text-grey-8">Предпросмотр чека для клиента:</div>
-        <div class="receipt-preview" style="white-space: pre-line; font-family: monospace; font-size: 14px;">{{ receiptPreview }}</div>
+        <img
+          :src="receiptImageUrl"
+          alt="Чек заказа"
+          class="receipt-image"
+          style="width: 100%; max-width: 600px; display: block; margin: 0 auto; border-radius: 4px;"
+        />
       </div>
 
       <!-- Action buttons -->
@@ -73,7 +78,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRecipesStore } from '@/stores/recipes'
-import { calculateOrderTotal, generateReceiptText } from '@/utils/receiptGenerator'
+import { calculateOrderTotal } from '@/utils/receiptGenerator'
+import { generateReceiptImage, generateReceiptImageDataURL } from '@/utils/receiptImageGenerator'
 import type { Recipe } from '@/types/recipe'
 
 interface Props {
@@ -83,7 +89,7 @@ interface Props {
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-  share: [receiptText: string]
+  share: [receiptBlob: Blob]
   close: []
 }>()
 
@@ -94,6 +100,9 @@ const weight = ref<number>(0)
 
 // Track if weight field was focused to clear default values
 const weightFocused = ref(false)
+
+// Receipt image preview
+const receiptImageUrl = ref<string>('')
 
 // Watch for recipe prop changes and update selection
 watch(() => props.recipe, (newRecipe) => {
@@ -134,11 +143,11 @@ const profit = computed(() => {
 const formattedTotal = computed(() => formatNumber(totalPrice.value))
 const formattedProfit = computed(() => formatNumber(profit.value))
 
-// Generate receipt preview
-const receiptPreview = computed(() => {
-  if (!selectedRecipe.value || weight.value <= 0) return ''
+// Receipt data computed
+const receiptData = computed(() => {
+  if (!selectedRecipe.value || weight.value <= 0) return null
 
-  const receiptData = {
+  return {
     recipeName: selectedRecipe.value.name,
     weight: weight.value,
     pricePerUnit: selectedRecipe.value.sellingPrice,
@@ -146,9 +155,21 @@ const receiptPreview = computed(() => {
     total: totalPrice.value,
     currency: '₽'
   }
-
-  return generateReceiptText(receiptData)
 })
+
+// Watch for changes and regenerate receipt image
+watch(receiptData, async (data) => {
+  if (data) {
+    try {
+      receiptImageUrl.value = await generateReceiptImageDataURL(data)
+    } catch (error) {
+      console.error('Failed to generate receipt image:', error)
+      receiptImageUrl.value = ''
+    }
+  } else {
+    receiptImageUrl.value = ''
+  }
+}, { immediate: true })
 
 // Handle focus on weight field - clear if default value
 function onWeightFocus() {
@@ -160,22 +181,19 @@ function onWeightFocus() {
 
 // Methods
 function formatNumber(num: number): string {
-  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  // Round to 2 decimal places and format with spaces
+  const rounded = num.toFixed(2)
+  return rounded.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
 }
 
-function handleShare() {
-  if (!selectedRecipe.value || weight.value <= 0) return
+async function handleShare() {
+  if (!receiptData.value) return
 
-  const receiptData = {
-    recipeName: selectedRecipe.value.name,
-    weight: weight.value,
-    pricePerUnit: selectedRecipe.value.sellingPrice,
-    unit: unitLabel.value,
-    total: totalPrice.value,
-    currency: '₽'
+  try {
+    const receiptBlob = await generateReceiptImage(receiptData.value)
+    emit('share', receiptBlob)
+  } catch (error) {
+    console.error('Failed to generate receipt image for sharing:', error)
   }
-
-  const receiptText = generateReceiptText(receiptData)
-  emit('share', receiptText)
 }
 </script>

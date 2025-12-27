@@ -72,14 +72,19 @@ describe('OrderCalculator', () => {
     expect(wrapper.find('[data-test="share-button"]').exists()).toBe(true)
   })
 
-  it('should generate receipt text when share button clicked', async () => {
+  it('should generate receipt image when share button clicked', async () => {
     wrapper.vm.selectedRecipeId = 1
     wrapper.vm.weight = 2.5
     await wrapper.vm.$nextTick()
 
     await wrapper.find('[data-test="share-button"]').trigger('click')
 
-    expect(wrapper.emitted('share')).toBeTruthy()
+    // Wait for async handleShare to complete
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const shareEvent = wrapper.emitted('share')
+    expect(shareEvent).toBeTruthy()
+    expect(shareEvent?.[0]?.[0]).toBeInstanceOf(Blob)
   })
 
   it('should update total when weight changes', async () => {

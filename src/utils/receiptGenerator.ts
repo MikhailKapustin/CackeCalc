@@ -29,11 +29,12 @@ export function calculateOrderTotal(recipe: Recipe, quantity: number): number {
 }
 
 /**
- * Format number with spaces as thousands separator
- * Example: 10000 -> "10 000"
+ * Format number with spaces as thousands separator and 2 decimal places
+ * Example: 10000 -> "10 000.00", 1234.5 -> "1 234.50"
  */
 function formatNumber(num: number): string {
-  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  const rounded = num.toFixed(2)
+  return rounded.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
 }
 
 /**

@@ -56,8 +56,8 @@ describe('Receipt Generator', () => {
       expect(text).toContain('🍰 Ваш расчет заказа')
       expect(text).toContain('Торт: Торт Сникерс')
       expect(text).toContain('Вес: 2.5 кг')
-      expect(text).toContain('Цена за кг: 1 800 ₽')
-      expect(text).toContain('💰 ИТОГО: 4 500 ₽')
+      expect(text).toContain('Цена за кг: 1 800.00 ₽')
+      expect(text).toContain('💰 ИТОГО: 4 500.00 ₽')
       expect(text).toContain('Посчитано в приложении CakeCost')
     })
 
@@ -73,7 +73,7 @@ describe('Receipt Generator', () => {
 
       const text = generateReceiptText(receipt)
 
-      expect(text).toContain('10 000 ₽')
+      expect(text).toContain('10 000.00 ₽')
     })
 
     it('should handle piece-based orders', () => {
@@ -89,7 +89,7 @@ describe('Receipt Generator', () => {
       const text = generateReceiptText(receipt)
 
       expect(text).toContain('Количество: 12 шт')
-      expect(text).toContain('Цена за шт: 150 ₽')
+      expect(text).toContain('Цена за шт: 150.00 ₽')
     })
   })
 })

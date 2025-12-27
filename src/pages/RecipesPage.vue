@@ -159,35 +159,57 @@ function handleCalculatorClose() {
   selectedRecipe.value = undefined
 }
 
-async function handleShareReceipt(receiptText: string) {
+async function handleShareReceipt(receiptBlob: Blob) {
   try {
     // Check if Web Share API is available
-    if (navigator.share) {
-      await navigator.share({
-        text: receiptText
-      })
-      $q.notify({
-        type: 'positive',
-        message: 'Расчет отправлен',
-        icon: 'share'
-      })
+    if (navigator.share && navigator.canShare) {
+      // Create a File from the Blob for sharing
+      const file = new File([receiptBlob], 'receipt.png', { type: 'image/png' })
+
+      // Check if files can be shared
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Чек заказа',
+          text: 'Расчет стоимости заказа'
+        })
+        $q.notify({
+          type: 'positive',
+          message: 'Чек отправлен',
+          icon: 'share'
+        })
+      } else {
+        // Fallback: download the image
+        downloadImage(receiptBlob)
+      }
     } else {
-      // Fallback: copy to clipboard
-      await navigator.clipboard.writeText(receiptText)
-      $q.notify({
-        type: 'positive',
-        message: 'Расчет скопирован в буфер обмена',
-        icon: 'content_copy'
-      })
+      // Fallback: download the image
+      downloadImage(receiptBlob)
     }
   } catch (error) {
     // If sharing was cancelled or failed
     if (error instanceof Error && error.name !== 'AbortError') {
       $q.notify({
         type: 'negative',
-        message: 'Ошибка при отправке расчета'
+        message: 'Ошибка при отправке чека'
       })
     }
   }
+}
+
+function downloadImage(blob: Blob) {
+  // Create download link
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'receipt.png'
+  link.click()
+  URL.revokeObjectURL(url)
+
+  $q.notify({
+    type: 'positive',
+    message: 'Чек сохранен в загрузки',
+    icon: 'download'
+  })
 }
 </script>
