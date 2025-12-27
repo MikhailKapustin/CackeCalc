@@ -59,11 +59,21 @@
       <div class="row q-gutter-sm q-mt-md">
         <QBtn
           v-if="selectedRecipe && weight > 0"
-          label="Отправить расчет клиенту"
+          label="Отправить"
           color="primary"
           icon="share"
           data-test="share-button"
           @click="handleShare"
+          class="col"
+        />
+        <QBtn
+          v-if="selectedRecipe && weight > 0"
+          label="Копировать"
+          color="secondary"
+          icon="content_copy"
+          outline
+          data-test="copy-button"
+          @click="handleCopy"
           class="col"
         />
         <QBtn
@@ -77,6 +87,8 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useQuasar } from 'quasar'
+import { Clipboard } from '@capacitor/clipboard'
 import { useRecipesStore } from '@/stores/recipes'
 import { calculateOrderTotal } from '@/utils/receiptGenerator'
 import { generateReceiptImage, generateReceiptImageDataURL } from '@/utils/receiptImageGenerator'
@@ -93,6 +105,7 @@ const emit = defineEmits<{
   close: []
 }>()
 
+const $q = useQuasar()
 const recipesStore = useRecipesStore()
 
 const selectedRecipeId = ref<number | null>(props.recipe?.id || null)
@@ -194,6 +207,29 @@ async function handleShare() {
     emit('share', receiptBlob)
   } catch (error) {
     console.error('Failed to generate receipt image for sharing:', error)
+  }
+}
+
+async function handleCopy() {
+  if (!receiptImageUrl.value) return
+
+  try {
+    // Copy image as base64 data URL to clipboard
+    await Clipboard.write({
+      image: receiptImageUrl.value
+    })
+
+    $q.notify({
+      type: 'positive',
+      message: 'Чек скопирован в буфер обмена',
+      icon: 'content_copy'
+    })
+  } catch (error) {
+    console.error('Failed to copy receipt to clipboard:', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Не удалось скопировать чек'
+    })
   }
 }
 </script>
