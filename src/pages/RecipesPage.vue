@@ -198,6 +198,10 @@ async function handleShareReceipt(receiptBlob: Blob) {
 
       console.log('Share successful')
 
+      // Close calculator dialog immediately after share
+      showCalculatorDialog.value = false
+      selectedRecipe.value = undefined
+
       // Clean up temp file after a delay
       setTimeout(async () => {
         try {
