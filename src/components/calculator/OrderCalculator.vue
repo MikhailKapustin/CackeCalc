@@ -44,6 +44,12 @@
         </div>
       </div>
 
+      <!-- Receipt Preview -->
+      <div v-if="selectedRecipe && weight > 0" class="q-mt-md q-pa-md bg-grey-2 rounded-borders">
+        <div class="text-subtitle2 q-mb-sm text-grey-8">Предпросмотр чека для клиента:</div>
+        <div class="receipt-preview" style="white-space: pre-line; font-family: monospace; font-size: 14px;">{{ receiptPreview }}</div>
+      </div>
+
       <!-- Action buttons -->
       <div class="row q-gutter-sm q-mt-md">
         <QBtn
@@ -127,6 +133,22 @@ const profit = computed(() => {
 
 const formattedTotal = computed(() => formatNumber(totalPrice.value))
 const formattedProfit = computed(() => formatNumber(profit.value))
+
+// Generate receipt preview
+const receiptPreview = computed(() => {
+  if (!selectedRecipe.value || weight.value <= 0) return ''
+
+  const receiptData = {
+    recipeName: selectedRecipe.value.name,
+    weight: weight.value,
+    pricePerUnit: selectedRecipe.value.sellingPrice,
+    unit: unitLabel.value,
+    total: totalPrice.value,
+    currency: '₽'
+  }
+
+  return generateReceiptText(receiptData)
+})
 
 // Handle focus on weight field - clear if default value
 function onWeightFocus() {
