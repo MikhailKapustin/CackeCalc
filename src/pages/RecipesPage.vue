@@ -18,9 +18,9 @@
         @delete="handleDelete"
       />
 
-      <!-- Add/Edit Dialog (placeholder for now) -->
+      <!-- Add/Edit Dialog -->
       <QDialog v-model="showAddDialog">
-        <QCard style="min-width: 350px">
+        <QCard style="min-width: 600px; max-width: 800px;">
           <QCardSection>
             <div class="text-h6">
               {{ editingRecipe ? 'Редактировать рецепт' : 'Добавить рецепт' }}
@@ -28,15 +28,13 @@
           </QCardSection>
 
           <QCardSection class="q-pt-none">
-            <div class="text-grey-7">
-              Конструктор рецептов будет реализован в следующей фазе.<br>
-              Пока можно только просматривать список рецептов.
-            </div>
+            <RecipeForm
+              :recipe="editingRecipe"
+              :mode="editingRecipe ? 'edit' : 'create'"
+              @save="handleSave"
+              @cancel="handleCancel"
+            />
           </QCardSection>
-
-          <QCardActions align="right">
-            <QBtn flat label="Закрыть" color="primary" v-close-popup />
-          </QCardActions>
         </QCard>
       </QDialog>
     </div>
@@ -49,7 +47,8 @@ import { useQuasar } from 'quasar'
 import { useRecipesStore } from '@/stores/recipes'
 import { useIngredientsStore } from '@/stores/ingredients'
 import RecipeList from '@/components/recipes/RecipeList.vue'
-import type { Recipe } from '@/types/recipe'
+import RecipeForm from '@/components/recipes/RecipeForm.vue'
+import type { Recipe, RecipeInput } from '@/types/recipe'
 
 const $q = useQuasar()
 const recipesStore = useRecipesStore()
@@ -87,5 +86,39 @@ async function handleDelete(id: number) {
     type: 'positive',
     message: 'Рецепт удален'
   })
+}
+
+async function handleSave(recipeData: RecipeInput) {
+  try {
+    if (editingRecipe.value) {
+      // Update existing recipe
+      await recipesStore.updateRecipe(editingRecipe.value.id, recipeData)
+      $q.notify({
+        type: 'positive',
+        message: 'Рецепт обновлен'
+      })
+    } else {
+      // Create new recipe
+      await recipesStore.addRecipe(recipeData)
+      $q.notify({
+        type: 'positive',
+        message: 'Рецепт создан'
+      })
+    }
+
+    // Close dialog and reset
+    showAddDialog.value = false
+    editingRecipe.value = undefined
+  } catch (error) {
+    $q.notify({
+      type: 'negative',
+      message: 'Ошибка сохранения рецепта'
+    })
+  }
+}
+
+function handleCancel() {
+  showAddDialog.value = false
+  editingRecipe.value = undefined
 }
 </script>

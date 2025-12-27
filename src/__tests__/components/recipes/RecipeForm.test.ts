@@ -22,7 +22,7 @@ describe('RecipeForm', () => {
 
     wrapper = mount(RecipeForm, {
       global: {
-        plugins: [createPinia(), Quasar]
+        plugins: [Quasar]
       }
     })
   })
@@ -317,7 +317,7 @@ describe('RecipeForm', () => {
       wrapper = mount(RecipeForm, {
         props: { recipe, mode: 'edit' },
         global: {
-          plugins: [createPinia(), Quasar]
+          plugins: [Quasar]
         }
       })
 
@@ -339,7 +339,7 @@ describe('RecipeForm', () => {
       wrapper = mount(RecipeForm, {
         props: { recipe, mode: 'edit' },
         global: {
-          plugins: [createPinia(), Quasar]
+          plugins: [Quasar]
         }
       })
 
