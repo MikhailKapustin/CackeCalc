@@ -74,6 +74,17 @@
               flat
               round
               dense
+              icon="calculate"
+              color="accent"
+              data-test="calculate-button"
+              @click="$emit('calculate', recipe.id)"
+            >
+              <QTooltip>Посчитать заказ</QTooltip>
+            </QBtn>
+            <QBtn
+              flat
+              round
+              dense
               icon="edit"
               color="primary"
               data-test="edit-button"
@@ -132,6 +143,7 @@ import type { Recipe, SellingUnit } from '@/types/recipe'
 interface Emits {
   (e: 'edit', id: number): void
   (e: 'delete', id: number): void
+  (e: 'calculate', id: number): void
 }
 
 const emit = defineEmits<Emits>()

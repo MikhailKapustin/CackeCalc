@@ -16,23 +16,42 @@
       <RecipeList
         @edit="handleEdit"
         @delete="handleDelete"
+        @calculate="handleCalculate"
       />
 
       <!-- Add/Edit Dialog -->
-      <QDialog v-model="showAddDialog">
-        <QCard style="min-width: 600px; max-width: 800px;">
-          <QCardSection>
-            <div class="text-h6">
+      <QDialog v-model="showAddDialog" maximized>
+        <QCard>
+          <QToolbar class="bg-primary text-white">
+            <QToolbarTitle>
               {{ editingRecipe ? 'Редактировать рецепт' : 'Добавить рецепт' }}
-            </div>
-          </QCardSection>
+            </QToolbarTitle>
+            <QBtn flat round dense icon="close" v-close-popup />
+          </QToolbar>
 
-          <QCardSection class="q-pt-none">
+          <QCardSection>
             <RecipeForm
               :recipe="editingRecipe"
               :mode="editingRecipe ? 'edit' : 'create'"
               @save="handleSave"
               @cancel="handleCancel"
+            />
+          </QCardSection>
+        </QCard>
+      </QDialog>
+
+      <!-- Order Calculator Dialog -->
+      <QDialog v-model="showCalculatorDialog">
+        <QCard style="min-width: 400px; max-width: 600px;">
+          <QCardSection>
+            <div class="text-h6">Калькулятор заказа</div>
+          </QCardSection>
+
+          <QCardSection class="q-pt-none">
+            <OrderCalculator
+              v-if="selectedRecipe"
+              :recipe="selectedRecipe"
+              @close="handleCalculatorClose"
             />
           </QCardSection>
         </QCard>
@@ -48,6 +67,7 @@ import { useRecipesStore } from '@/stores/recipes'
 import { useIngredientsStore } from '@/stores/ingredients'
 import RecipeList from '@/components/recipes/RecipeList.vue'
 import RecipeForm from '@/components/recipes/RecipeForm.vue'
+import OrderCalculator from '@/components/calculator/OrderCalculator.vue'
 import type { Recipe, RecipeInput } from '@/types/recipe'
 
 const $q = useQuasar()
@@ -56,6 +76,9 @@ const ingredientsStore = useIngredientsStore()
 
 const showAddDialog = ref(false)
 const editingRecipe = ref<Recipe | undefined>(undefined)
+
+const showCalculatorDialog = ref(false)
+const selectedRecipe = ref<Recipe | undefined>(undefined)
 
 // Load data on mount
 onMounted(async () => {
@@ -120,5 +143,18 @@ async function handleSave(recipeData: RecipeInput) {
 function handleCancel() {
   showAddDialog.value = false
   editingRecipe.value = undefined
+}
+
+function handleCalculate(id: number) {
+  const recipe = recipesStore.getById(id)
+  if (recipe) {
+    selectedRecipe.value = recipe
+    showCalculatorDialog.value = true
+  }
+}
+
+function handleCalculatorClose() {
+  showCalculatorDialog.value = false
+  selectedRecipe.value = undefined
 }
 </script>

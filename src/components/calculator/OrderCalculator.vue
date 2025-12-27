@@ -1,10 +1,5 @@
 <template>
-  <QCard flat bordered class="q-pa-md">
-    <QCardSection>
-      <div class="text-h6">Калькулятор заказа</div>
-    </QCardSection>
-
-    <QCardSection class="q-gutter-md">
+  <div class="q-gutter-md">
       <!-- Recipe selector -->
       <QSelect
         v-model="selectedRecipeId"
@@ -53,33 +48,54 @@
         </div>
       </div>
 
-      <!-- Share button -->
-      <QBtn
-        v-if="selectedRecipe && weight > 0 && !hasError"
-        label="Отправить расчет клиенту"
-        color="primary"
-        icon="share"
-        data-test="share-button"
-        @click="handleShare"
-        class="full-width q-mt-md"
-      />
-    </QCardSection>
-  </QCard>
+      <!-- Action buttons -->
+      <div class="row q-gutter-sm q-mt-md">
+        <QBtn
+          v-if="selectedRecipe && weight > 0 && !hasError"
+          label="Отправить расчет клиенту"
+          color="primary"
+          icon="share"
+          data-test="share-button"
+          @click="handleShare"
+          class="col"
+        />
+        <QBtn
+          flat
+          label="Закрыть"
+          @click="emit('close')"
+        />
+      </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRecipesStore } from '@/stores/recipes'
 import { calculateOrderTotal, generateReceiptText } from '@/utils/receiptGenerator'
+import type { Recipe } from '@/types/recipe'
+
+interface Props {
+  recipe?: Recipe
+}
+
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
   share: [receiptText: string]
+  close: []
 }>()
 
 const recipesStore = useRecipesStore()
 
-const selectedRecipeId = ref<number | null>(null)
+const selectedRecipeId = ref<number | null>(props.recipe?.id || null)
 const weight = ref<number>(0)
+
+// Watch for recipe prop changes and update selection
+watch(() => props.recipe, (newRecipe) => {
+  if (newRecipe) {
+    selectedRecipeId.value = newRecipe.id
+  }
+}, { immediate: true })
 
 // Computed properties
 const recipeOptions = computed(() => recipesStore.recipes)
