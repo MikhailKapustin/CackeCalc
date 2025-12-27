@@ -52,6 +52,7 @@
               v-if="selectedRecipe"
               :recipe="selectedRecipe"
               @close="handleCalculatorClose"
+              @share="handleShareReceipt"
             />
           </QCardSection>
         </QCard>
@@ -156,5 +157,37 @@ function handleCalculate(id: number) {
 function handleCalculatorClose() {
   showCalculatorDialog.value = false
   selectedRecipe.value = undefined
+}
+
+async function handleShareReceipt(receiptText: string) {
+  try {
+    // Check if Web Share API is available
+    if (navigator.share) {
+      await navigator.share({
+        text: receiptText
+      })
+      $q.notify({
+        type: 'positive',
+        message: 'Расчет отправлен',
+        icon: 'share'
+      })
+    } else {
+      // Fallback: copy to clipboard
+      await navigator.clipboard.writeText(receiptText)
+      $q.notify({
+        type: 'positive',
+        message: 'Расчет скопирован в буфер обмена',
+        icon: 'content_copy'
+      })
+    }
+  } catch (error) {
+    // If sharing was cancelled or failed
+    if (error instanceof Error && error.name !== 'AbortError') {
+      $q.notify({
+        type: 'negative',
+        message: 'Ошибка при отправке расчета'
+      })
+    }
+  }
 }
 </script>
