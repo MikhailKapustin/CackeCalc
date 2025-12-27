@@ -10,7 +10,7 @@
           val => !!val || 'Название обязательно'
         ]"
         outlined
-        dense
+        lazy-rules
       />
 
       <!-- Цена покупки -->
@@ -23,8 +23,8 @@
           val => val > 0 || 'Цена должна быть положительным числом'
         ]"
         outlined
-        dense
         suffix="₽"
+        lazy-rules
         @focus="onPriceFocus"
       />
 
@@ -38,7 +38,7 @@
           val => val > 0 || 'Количество должно быть больше нуля'
         ]"
         outlined
-        dense
+        lazy-rules
         @focus="onAmountFocus"
       />
 
@@ -51,7 +51,6 @@
         emit-value
         map-options
         outlined
-        dense
         @update:model-value="onUnitChange"
       />
 

@@ -51,8 +51,8 @@ describe('RecipeForm', () => {
     })
 
     it('should have default selling unit as kg', () => {
-      const sellingUnitSelect = wrapper.find('[data-test="selling-unit"]')
-      expect(sellingUnitSelect.element.value).toBe('kg')
+      // Check the component's internal state instead of DOM value
+      expect(wrapper.vm.formData.sellingUnit).toBe('kg')
     })
   })
 
@@ -70,17 +70,20 @@ describe('RecipeForm', () => {
     it('should populate selector with available ingredients', async () => {
       await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
 
-      const options = wrapper.findAll('[data-test="ingredient-option"]')
-      expect(options).toHaveLength(3)
-      expect(options[0].text()).toContain('Мука')
-      expect(options[1].text()).toContain('Сахар')
-      expect(options[2].text()).toContain('Яйца')
+      // Check available ingredients in component data instead of DOM
+      const availableIngredients = wrapper.vm.availableIngredients
+      expect(availableIngredients).toHaveLength(3)
+      expect(availableIngredients.map((ing: any) => ing.name)).toEqual(['Мука', 'Сахар', 'Яйца'])
     })
 
     it('should add ingredient to recipe items list', async () => {
       await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
-      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
-      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+
+      // Set values directly on component's data
+      wrapper.vm.selectedIngredientId = 1
+      wrapper.vm.ingredientAmount = 500
+      await wrapper.vm.$nextTick()
+
       await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
 
       const items = wrapper.findAll('[data-test="recipe-item"]')
@@ -92,8 +95,11 @@ describe('RecipeForm', () => {
     it('should allow updating ingredient amount', async () => {
       // Добавляем ингредиент
       await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
-      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
-      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+
+      wrapper.vm.selectedIngredientId = 1
+      wrapper.vm.ingredientAmount = 500
+      await wrapper.vm.$nextTick()
+
       await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
 
       // Изменяем количество
@@ -106,8 +112,11 @@ describe('RecipeForm', () => {
     it('should remove ingredient from recipe', async () => {
       // Добавляем ингредиент
       await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
-      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
-      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+
+      wrapper.vm.selectedIngredientId = 1
+      wrapper.vm.ingredientAmount = 500
+      await wrapper.vm.$nextTick()
+
       await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
 
       expect(wrapper.findAll('[data-test="recipe-item"]')).toHaveLength(1)
@@ -121,31 +130,38 @@ describe('RecipeForm', () => {
     it('should prevent adding same ingredient twice', async () => {
       // Добавляем мука первый раз
       await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
-      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
-      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+
+      wrapper.vm.selectedIngredientId = 1
+      wrapper.vm.ingredientAmount = 500
+      await wrapper.vm.$nextTick()
+
       await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
 
       // Пытаемся добавить мука снова
       await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
 
-      const selector = wrapper.find('[data-test="ingredient-selector"]')
-      const options = selector.findAll('option')
-
-      // Мука не должна быть в списке доступных
-      expect(options.some(opt => opt.text().includes('Мука'))).toBe(false)
+      // Check available ingredients in component data
+      const availableIngredients = wrapper.vm.availableIngredients
+      expect(availableIngredients.some((ing: any) => ing.name === 'Мука')).toBe(false)
     })
 
     it('should display amounts in correct units based on ingredient type', async () => {
       // Добавляем мука (вес - граммы)
       await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
-      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
-      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+
+      wrapper.vm.selectedIngredientId = 1
+      wrapper.vm.ingredientAmount = 500
+      await wrapper.vm.$nextTick()
+
       await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
 
       // Добавляем яйца (штуки)
       await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
-      await wrapper.find('[data-test="ingredient-selector"]').setValue('3')
-      await wrapper.find('[data-test="ingredient-amount"]').setValue('5')
+
+      wrapper.vm.selectedIngredientId = 3
+      wrapper.vm.ingredientAmount = 5
+      await wrapper.vm.$nextTick()
+
       await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
 
       const items = wrapper.findAll('[data-test="recipe-item"]')
@@ -158,8 +174,11 @@ describe('RecipeForm', () => {
     it('should calculate and display total cost automatically', async () => {
       // Добавляем мука: 500г × 0.06₽ = 30₽
       await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
-      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
-      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+
+      wrapper.vm.selectedIngredientId = 1
+      wrapper.vm.ingredientAmount = 500
+      await wrapper.vm.$nextTick()
+
       await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
 
       expect(wrapper.find('[data-test="total-cost"]').text()).toContain('30')
@@ -168,8 +187,11 @@ describe('RecipeForm', () => {
     it('should update cost when ingredient amount changes', async () => {
       // Добавляем мука: 500г × 0.06₽ = 30₽
       await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
-      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
-      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+
+      wrapper.vm.selectedIngredientId = 1
+      wrapper.vm.ingredientAmount = 500
+      await wrapper.vm.$nextTick()
+
       await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
 
       expect(wrapper.find('[data-test="total-cost"]').text()).toContain('30')
@@ -183,20 +205,29 @@ describe('RecipeForm', () => {
     it('should calculate cost for multiple ingredients', async () => {
       // Мука: 500г × 0.06₽ = 30₽
       await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
-      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
-      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+
+      wrapper.vm.selectedIngredientId = 1
+      wrapper.vm.ingredientAmount = 500
+      await wrapper.vm.$nextTick()
+
       await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
 
       // Сахар: 300г × 0.08₽ = 24₽
       await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
-      await wrapper.find('[data-test="ingredient-selector"]').setValue('2')
-      await wrapper.find('[data-test="ingredient-amount"]').setValue('300')
+
+      wrapper.vm.selectedIngredientId = 2
+      wrapper.vm.ingredientAmount = 300
+      await wrapper.vm.$nextTick()
+
       await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
 
       // Яйца: 5шт × 9₽ = 45₽
       await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
-      await wrapper.find('[data-test="ingredient-selector"]').setValue('3')
-      await wrapper.find('[data-test="ingredient-amount"]').setValue('5')
+
+      wrapper.vm.selectedIngredientId = 3
+      wrapper.vm.ingredientAmount = 5
+      await wrapper.vm.$nextTick()
+
       await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
 
       // Итого: 30 + 24 + 45 = 99₽
@@ -208,8 +239,11 @@ describe('RecipeForm', () => {
     it('should calculate and display profit when selling price is set', async () => {
       // Себестоимость: 30₽
       await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
-      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
-      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+
+      wrapper.vm.selectedIngredientId = 1
+      wrapper.vm.ingredientAmount = 500
+      await wrapper.vm.$nextTick()
+
       await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
 
       // Цена продажи: 2000₽
@@ -222,8 +256,11 @@ describe('RecipeForm', () => {
     it('should calculate and display profit percentage', async () => {
       // Себестоимость: 30₽
       await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
-      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
-      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+
+      wrapper.vm.selectedIngredientId = 1
+      wrapper.vm.ingredientAmount = 500
+      await wrapper.vm.$nextTick()
+
       await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
 
       // Цена продажи: 90₽
@@ -236,8 +273,11 @@ describe('RecipeForm', () => {
     it('should show profit indicator with color coding', async () => {
       // Себестоимость: 30₽
       await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
-      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
-      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+
+      wrapper.vm.selectedIngredientId = 1
+      wrapper.vm.ingredientAmount = 500
+      await wrapper.vm.$nextTick()
+
       await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
 
       // Цена продажи: 90₽ (маржа 200% - высокая)
@@ -250,8 +290,11 @@ describe('RecipeForm', () => {
     it('should warn when selling below cost', async () => {
       // Себестоимость: 30₽
       await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
-      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
-      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+
+      wrapper.vm.selectedIngredientId = 1
+      wrapper.vm.ingredientAmount = 500
+      await wrapper.vm.$nextTick()
+
       await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
 
       // Цена продажи: 20₽ (убыток!)
@@ -267,12 +310,18 @@ describe('RecipeForm', () => {
       await wrapper.find('[data-test="recipe-name"]').setValue('Торт Наполеон')
       await wrapper.find('[data-test="recipe-description"]').setValue('Классический рецепт')
       await wrapper.find('[data-test="selling-price"]').setValue('2500')
-      await wrapper.find('[data-test="selling-unit"]').setValue('kg')
+
+      // Set selling unit directly on component data (QSelect)
+      wrapper.vm.formData.sellingUnit = 'kg'
+      await wrapper.vm.$nextTick()
 
       // Добавляем ингредиент
       await wrapper.find('[data-test="add-ingredient-button"]').trigger('click')
-      await wrapper.find('[data-test="ingredient-selector"]').setValue('1')
-      await wrapper.find('[data-test="ingredient-amount"]').setValue('500')
+
+      wrapper.vm.selectedIngredientId = 1
+      wrapper.vm.ingredientAmount = 500
+      await wrapper.vm.$nextTick()
+
       await wrapper.find('[data-test="confirm-add-ingredient"]').trigger('click')
 
       await wrapper.find('form').trigger('submit')

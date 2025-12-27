@@ -35,6 +35,7 @@
           val => val > 0 || 'Цена должна быть положительным числом'
         ]"
         lazy-rules
+        @focus="onSellingPriceFocus"
       />
 
       <!-- Единица продажи -->
@@ -125,6 +126,12 @@
             outlined
             min="0"
             step="0.01"
+            :rules="[
+              val => val !== null && val !== '' || 'Введите количество',
+              val => val > 0 || 'Количество должно быть больше нуля'
+            ]"
+            lazy-rules
+            @focus="onIngredientAmountFocus"
           />
 
           <div class="row q-gutter-sm">
@@ -264,6 +271,10 @@ const errorMessage = ref('')
 const showIngredientSelector = ref(false)
 const selectedIngredientId = ref<number | null>(null)
 const ingredientAmount = ref(0)
+const ingredientAmountFocused = ref(false)
+
+// Track if selling price was focused to clear default values
+const sellingPriceFocused = ref(false)
 
 // Available ingredients (exclude already added)
 const availableIngredients = computed(() => {
@@ -288,6 +299,22 @@ function getIngredientUnitLabel(ingredientId: number): string {
   return 'шт'
 }
 
+// Handle focus on selling price field - clear if default value
+function onSellingPriceFocus() {
+  if (!sellingPriceFocused.value && formData.value.sellingPrice === 0) {
+    formData.value.sellingPrice = null as any
+  }
+  sellingPriceFocused.value = true
+}
+
+// Handle focus on ingredient amount field - clear if default value
+function onIngredientAmountFocus() {
+  if (!ingredientAmountFocused.value && ingredientAmount.value === 0) {
+    ingredientAmount.value = null as any
+  }
+  ingredientAmountFocused.value = true
+}
+
 // Add ingredient to recipe
 function confirmAddIngredient() {
   if (selectedIngredientId.value === null) {
@@ -306,12 +333,14 @@ function confirmAddIngredient() {
   // Reset
   selectedIngredientId.value = null
   ingredientAmount.value = 0
+  ingredientAmountFocused.value = false
   showIngredientSelector.value = false
 }
 
 function cancelAddIngredient() {
   selectedIngredientId.value = null
   ingredientAmount.value = 0
+  ingredientAmountFocused.value = false
   showIngredientSelector.value = false
 }
 

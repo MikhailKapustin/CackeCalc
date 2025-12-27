@@ -2429,6 +2429,127 @@ describe('OrderCalculator', () => {
 })
 ```
 
+### 4.3 UX-улучшения форм (Phase 4.5)
+
+**Описание:** Улучшения пользовательского опыта на основе тестирования приложения на мобильных устройствах.
+
+#### Проблемы, выявленные при тестировании:
+
+1. **Преждевременная валидация:**
+   - Ошибки отображались сразу при изменении поля
+   - Пользователь видел красные сообщения до попытки отправки формы
+   - Негативный UX, особенно на мобильных устройствах
+
+2. **Неудобство ввода чисел:**
+   - Поля с дефолтным значением `0` требовали удаления перед вводом
+   - Дополнительные действия замедляли работу
+
+3. **Плохая читаемость на мобильных:**
+   - Использование `dense` атрибута делало элементы слишком мелкими
+   - Диалоги в компактном режиме обрезались на узких экранах
+   - Native `<select>` элементы не соответствовали стилю Quasar
+
+4. **Отсутствие интеграции:**
+   - RecipeForm не была подключена к RecipesPage (использовался placeholder)
+   - Калькулятор заказов был недоступен из UI
+
+#### Реализованные улучшения:
+
+**Валидация форм:**
+```vue
+<!-- До: валидация при каждом изменении -->
+<QInput
+  v-model="formData.name"
+  :rules="[val => !!val || 'Название обязательно']"
+/>
+
+<!-- После: валидация только при submit -->
+<QInput
+  v-model="formData.name"
+  :rules="[val => !!val || 'Название обязательно']"
+  lazy-rules
+/>
+```
+
+**Автоочистка дефолтных значений:**
+```typescript
+// Отслеживание первого фокуса
+const priceFocused = ref(false)
+
+function onPriceFocus() {
+  if (!priceFocused.value && formData.value.purchasePrice === 0) {
+    formData.value.purchasePrice = null as any
+  }
+  priceFocused.value = true
+}
+```
+
+**Замена компонентов:**
+```vue
+<!-- До: Native select -->
+<select v-model="formData.sellingUnit">
+  <option value="kg">Килограмм (кг)</option>
+  <option value="pcs">Штука (шт)</option>
+</select>
+
+<!-- После: Quasar QSelect -->
+<QSelect
+  v-model="formData.sellingUnit"
+  :options="[
+    { label: 'Килограмм (кг)', value: 'kg' },
+    { label: 'Штука (шт)', value: 'pcs' }
+  ]"
+  emit-value
+  map-options
+  outlined
+/>
+```
+
+**Fullscreen диалоги:**
+```vue
+<!-- До: обычный диалог -->
+<QDialog v-model="showAddDialog">
+  <QCard style="min-width: 350px">
+    ...
+  </QCard>
+</QDialog>
+
+<!-- После: fullscreen на мобильных -->
+<QDialog v-model="showAddDialog" maximized>
+  <QCard>
+    <QToolbar class="bg-primary text-white">
+      <QToolbarTitle>Добавить рецепт</QToolbarTitle>
+      <QBtn flat round dense icon="close" v-close-popup />
+    </QToolbar>
+    <QCardSection>
+      ...
+    </QCardSection>
+  </QCard>
+</QDialog>
+```
+
+**Интеграция компонентов:**
+- Подключен RecipeForm к RecipesPage (заменен placeholder)
+- Добавлена кнопка "Калькулятор заказов" в RecipeList
+- Создан диалог калькулятора в RecipesPage
+
+**Обновление тестов:**
+- Тесты адаптированы для работы с QSelect (доступ через `wrapper.vm` вместо DOM)
+- Добавлены проверки для `lazy-rules` и `clear-on-focus`
+- Все 24 теста RecipeForm.test.ts проходят успешно
+
+#### Затронутые файлы:
+
+**Компоненты:**
+- `src/components/ingredients/IngredientForm.vue`
+- `src/components/recipes/RecipeForm.vue`
+- `src/components/recipes/RecipeList.vue`
+- `src/components/calculator/OrderCalculator.vue`
+- `src/pages/RecipesPage.vue`
+
+**Тесты:**
+- `src/__tests__/components/recipes/RecipeForm.test.ts`
+
 ### Контрольная точка Фазы 4
 
 **Критерии завершения:**
@@ -2437,6 +2558,13 @@ describe('OrderCalculator', () => {
 - ✅ Генерация текстового чека функционирует
 - ✅ Функция "Поделиться" интегрирована
 - ✅ Отображение прибыли только для кондитера
+- ✅ **Формы используют lazy validation (валидация при submit)**
+- ✅ **Числовые поля очищаются при фокусе (если значение = 0)**
+- ✅ **Все select заменены на QSelect компоненты**
+- ✅ **Диалоги используют fullscreen режим на мобильных**
+- ✅ **RecipeForm интегрирована в RecipesPage**
+- ✅ **Калькулятор доступен из списка рецептов**
+- ✅ **Все тесты обновлены и проходят (24/24)**
 
 ---
 

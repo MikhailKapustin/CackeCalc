@@ -1457,6 +1457,163 @@ function openReceiptCustomization() {
 - ✅ Минимальное влияние на UX для честных пользователей
 - ✅ Защита ~90% от попыток взлома
 
+### 3.5 UI/UX Требования
+
+**Описание:** Стандарты разработки пользовательского интерфейса для обеспечения качественного опыта на мобильных устройствах.
+
+#### 3.5.1 Принципы валидации форм
+
+**Lazy Validation (Отложенная валидация):**
+- Все формы должны использовать `lazy-rules` атрибут на полях ввода
+- Валидация срабатывает только при попытке отправки формы
+- Ошибки НЕ показываются во время ввода текста
+- Предотвращает негативный UX от преждевременных сообщений об ошибках
+
+**Пример:**
+```vue
+<QInput
+  v-model="formData.name"
+  label="Название"
+  :rules="[
+    val => !!val || 'Название обязательно'
+  ]"
+  lazy-rules
+  outlined
+/>
+```
+
+**Clear-on-Focus (Очистка при фокусе):**
+- Числовые поля с дефолтным значением `0` должны очищаться при первом фокусе
+- Реализуется через отслеживание состояния фокуса
+- Улучшает скорость ввода данных, уменьшает количество действий
+
+**Пример:**
+```typescript
+const priceFocused = ref(false)
+
+function onPriceFocus() {
+  if (!priceFocused.value && formData.value.price === 0) {
+    formData.value.price = null as any
+  }
+  priceFocused.value = true
+}
+```
+
+```vue
+<QInput
+  v-model.number="formData.price"
+  label="Цена"
+  type="number"
+  @focus="onPriceFocus"
+  lazy-rules
+/>
+```
+
+#### 3.5.2 Использование Quasar компонентов
+
+**Обязательные компоненты:**
+- ✅ `QInput` - для всех текстовых полей и чисел
+- ✅ `QSelect` - для всех выпадающих списков (НЕ использовать native `<select>`)
+- ✅ `QBtn` - для всех кнопок
+- ✅ `QDialog` - для всех диалоговых окон
+- ✅ `QForm` - для всех форм с валидацией
+
+**Запрещенные элементы:**
+- ❌ Native `<select>` - использовать `QSelect`
+- ❌ Native `<input>` - использовать `QInput`
+- ❌ Native `<button>` - использовать `QBtn`
+
+**Причины:**
+- Единообразный стиль интерфейса
+- Лучшая работа на мобильных устройствах
+- Встроенная поддержка тем и локализации
+- Accessibility из коробки
+
+#### 3.5.3 Мобильная адаптация
+
+**Диалоговые окна:**
+- Все диалоги должны использовать `maximized` режим на мобильных
+- Обязательна кнопка закрытия в toolbar
+- Использовать `QToolbar` для заголовка
+
+**Пример:**
+```vue
+<QDialog v-model="showDialog" maximized>
+  <QCard>
+    <QToolbar class="bg-primary text-white">
+      <QToolbarTitle>Заголовок</QToolbarTitle>
+      <QBtn flat round dense icon="close" v-close-popup />
+    </QToolbar>
+
+    <QCardSection>
+      <!-- Контент диалога -->
+    </QCardSection>
+  </QCard>
+</QDialog>
+```
+
+**Размеры элементов:**
+- ❌ НЕ использовать атрибут `dense` для полей ввода (слишком мелко на мобильных)
+- ✅ Использовать стандартные размеры Quasar компонентов
+- ✅ Минимальная высота кнопок: 44px (стандарт iOS/Android)
+- ✅ Минимальный размер touch target: 48x48px
+
+**Spacing:**
+- Использовать `q-gutter-md` для spacing между элементами
+- Минимальный padding в диалогах: 16px
+- Использовать `q-pa-md` и `q-mt-md` вместо custom CSS
+
+#### 3.5.4 Accessibility (A11y)
+
+**Обязательные требования:**
+- Все интерактивные элементы имеют `aria-label` или видимый текст
+- Поля ввода связаны с `label` элементами
+- Кнопки имеют описательный текст (не только иконки)
+- Использовать `QTooltip` для иконочных кнопок
+
+**Пример:**
+```vue
+<QBtn
+  flat
+  round
+  icon="delete"
+  color="negative"
+  @click="deleteItem"
+>
+  <QTooltip>Удалить</QTooltip>
+</QBtn>
+```
+
+#### 3.5.5 Тестирование UI компонентов
+
+**Важно:** При тестировании Quasar компонентов:
+- QSelect НЕ рендерит options в DOM до открытия
+- Использовать `wrapper.vm` для доступа к данным компонента вместо DOM queries
+- Тесты должны проверять поведение, а не implementation details
+
+**Пример правильного теста:**
+```typescript
+// ❌ Неправильно: проверка DOM элементов QSelect
+const options = wrapper.findAll('option')
+expect(options).toHaveLength(3)
+
+// ✅ Правильно: проверка данных компонента
+const availableOptions = wrapper.vm.availableOptions
+expect(availableOptions).toHaveLength(3)
+```
+
+#### 3.5.6 Чек-лист при создании формы
+
+- [ ] Все `QInput` имеют `lazy-rules`
+- [ ] Числовые поля имеют `clear-on-focus` функциональность
+- [ ] Использован `QSelect` вместо native select
+- [ ] Диалог использует `maximized` режим
+- [ ] Есть кнопка закрытия в toolbar
+- [ ] НЕ используется атрибут `dense`
+- [ ] Все кнопки имеют tooltips или текстовые labels
+- [ ] Форма обернута в `QForm` компонент
+- [ ] Написаны тесты, использующие `wrapper.vm` для QSelect
+
 ---
 
 ## 4. Монетизация
