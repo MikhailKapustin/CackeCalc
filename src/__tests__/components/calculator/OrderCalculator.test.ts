@@ -106,9 +106,19 @@ describe('OrderCalculator', () => {
 
   it('should validate weight input as positive number', async () => {
     wrapper.vm.selectedRecipeId = 1
+
+    // Share button should not show when weight is negative or zero
     wrapper.vm.weight = -5
     await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-test="share-button"]').exists()).toBe(false)
 
-    expect(wrapper.find('[data-test="error-message"]').exists()).toBe(true)
+    wrapper.vm.weight = 0
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-test="share-button"]').exists()).toBe(false)
+
+    // Share button should show when weight is positive
+    wrapper.vm.weight = 2
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-test="share-button"]').exists()).toBe(true)
   })
 })

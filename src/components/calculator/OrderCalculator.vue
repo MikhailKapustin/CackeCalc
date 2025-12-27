@@ -25,16 +25,12 @@
           val => val > 0 || 'Количество должно быть положительным числом'
         ]"
         lazy-rules
+        @focus="onWeightFocus"
       >
         <template v-slot:append>
           <span data-test="unit-label" class="text-caption">{{ unitLabel }}</span>
         </template>
       </QInput>
-
-      <!-- Error message -->
-      <div v-if="hasError" data-test="error-message" class="text-negative text-caption">
-        Количество должно быть положительным числом
-      </div>
 
       <!-- Total price display -->
       <div v-if="selectedRecipe && weight > 0" class="q-mt-md">
@@ -51,7 +47,7 @@
       <!-- Action buttons -->
       <div class="row q-gutter-sm q-mt-md">
         <QBtn
-          v-if="selectedRecipe && weight > 0 && !hasError"
+          v-if="selectedRecipe && weight > 0"
           label="Отправить расчет клиенту"
           color="primary"
           icon="share"
@@ -89,6 +85,9 @@ const recipesStore = useRecipesStore()
 
 const selectedRecipeId = ref<number | null>(props.recipe?.id || null)
 const weight = ref<number>(0)
+
+// Track if weight field was focused to clear default values
+const weightFocused = ref(false)
 
 // Watch for recipe prop changes and update selection
 watch(() => props.recipe, (newRecipe) => {
@@ -129,9 +128,13 @@ const profit = computed(() => {
 const formattedTotal = computed(() => formatNumber(totalPrice.value))
 const formattedProfit = computed(() => formatNumber(profit.value))
 
-const hasError = computed(() => {
-  return weight.value !== null && weight.value !== 0 && weight.value < 0
-})
+// Handle focus on weight field - clear if default value
+function onWeightFocus() {
+  if (!weightFocused.value && weight.value === 0) {
+    weight.value = null as any
+  }
+  weightFocused.value = true
+}
 
 // Methods
 function formatNumber(num: number): string {
