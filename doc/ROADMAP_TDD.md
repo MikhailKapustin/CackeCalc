@@ -9,8 +9,9 @@
 6. [Фаза 4: Калькулятор заказов](#фаза-4-калькулятор-заказов)
 7. [Фаза 5: Локализация](#фаза-5-локализация)
 8. [Фаза 6: Монетизация и безопасность](#фаза-6-монетизация-и-безопасность)
-9. [Фаза 7: Экспорт/Импорт данных](#фаза-7-экспортимпорт-данных)
-10. [Фаза 8: Полировка и релиз](#фаза-8-полировка-и-релиз)
+9. [Фаза 7: Кастомизация чека (Pro Feature)](#фаза-7-кастомизация-чека-pro-feature)
+10. [Фаза 8: Экспорт/Импорт данных](#фаза-8-экспортимпорт-данных)
+11. [Фаза 9: Полировка и релиз](#фаза-9-полировка-и-релиз)
 
 ---
 
@@ -2954,6 +2955,461 @@ describe('Free Version Limits', () => {
 })
 ```
 
+### 6.4 AdMob интеграция
+
+#### TDD: Тесты для AdMob
+
+```typescript
+// src/__tests__/unit/stores/ads.test.ts
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { setActivePinia, createPinia } from 'pinia'
+import { useAdsStore } from '@/stores/ads'
+import { useSettingsStore } from '@/stores/settings'
+
+describe('Ads Store - AdMob', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  describe('Ad Initialization', () => {
+    it('should initialize AdMob with correct app ID', async () => {
+      const store = useAdsStore()
+
+      await store.initializeAds()
+
+      expect(store.isInitialized).toBe(true)
+    })
+
+    it('should NOT initialize ads for Pro users', async () => {
+      const adsStore = useAdsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = true
+
+      await adsStore.initializeAds()
+
+      expect(adsStore.isInitialized).toBe(false)
+      expect(adsStore.shouldShowAds).toBe(false)
+    })
+
+    it('should initialize ads for Free users', async () => {
+      const adsStore = useAdsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = false
+
+      await adsStore.initializeAds()
+
+      expect(adsStore.isInitialized).toBe(true)
+      expect(adsStore.shouldShowAds).toBe(true)
+    })
+  })
+
+  describe('Banner Ads', () => {
+    it('should show banner ad on bottom of screen', async () => {
+      const adsStore = useAdsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = false
+      await adsStore.initializeAds()
+
+      await adsStore.showBanner()
+
+      expect(adsStore.isBannerVisible).toBe(true)
+      expect(adsStore.bannerPosition).toBe('bottom')
+    })
+
+    it('should NOT show banner for Pro users', async () => {
+      const adsStore = useAdsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = true
+
+      await adsStore.showBanner()
+
+      expect(adsStore.isBannerVisible).toBe(false)
+    })
+
+    it('should hide banner ad', async () => {
+      const adsStore = useAdsStore()
+
+      await adsStore.showBanner()
+      await adsStore.hideBanner()
+
+      expect(adsStore.isBannerVisible).toBe(false)
+    })
+
+    it('should remove banner when user upgrades to Pro', async () => {
+      const adsStore = useAdsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = false
+      await adsStore.showBanner()
+
+      expect(adsStore.isBannerVisible).toBe(true)
+
+      // User purchases Pro
+      settingsStore.isPro = true
+      await adsStore.handleProUpgrade()
+
+      expect(adsStore.isBannerVisible).toBe(false)
+      expect(adsStore.shouldShowAds).toBe(false)
+    })
+  })
+
+  describe('Interstitial Ads', () => {
+    it('should show interstitial ad when saving recipe', async () => {
+      const adsStore = useAdsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = false
+      await adsStore.initializeAds()
+
+      const shown = await adsStore.showInterstitial('recipe_saved')
+
+      expect(shown).toBe(true)
+      expect(adsStore.lastInterstitialTrigger).toBe('recipe_saved')
+    })
+
+    it('should NOT show interstitial too frequently', async () => {
+      const adsStore = useAdsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = false
+      await adsStore.initializeAds()
+
+      await adsStore.showInterstitial('recipe_saved')
+
+      // Попытка показать снова сразу после
+      const shown = await adsStore.showInterstitial('recipe_saved')
+
+      expect(shown).toBe(false)
+    })
+
+    it('should respect minimum interval between interstitials', async () => {
+      const adsStore = useAdsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = false
+      await adsStore.initializeAds()
+
+      await adsStore.showInterstitial('recipe_saved')
+
+      // Проверить что есть cooldown
+      expect(adsStore.canShowInterstitial()).toBe(false)
+
+      // Симуляция прошедшего времени (>30 секунд)
+      vi.advanceTimersByTime(31000)
+
+      expect(adsStore.canShowInterstitial()).toBe(true)
+    })
+
+    it('should NOT show interstitial for Pro users', async () => {
+      const adsStore = useAdsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = true
+
+      const shown = await adsStore.showInterstitial('recipe_saved')
+
+      expect(shown).toBe(false)
+    })
+
+    it('should show interstitial when attempting export in Free version', async () => {
+      const adsStore = useAdsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = false
+      await adsStore.initializeAds()
+
+      const shown = await adsStore.showInterstitial('export_attempt')
+
+      expect(shown).toBe(true)
+    })
+  })
+
+  describe('Ad Events Tracking', () => {
+    it('should track ad impressions', async () => {
+      const adsStore = useAdsStore()
+
+      await adsStore.showBanner()
+
+      expect(adsStore.impressionsCount).toBe(1)
+    })
+
+    it('should track failed ad loads', async () => {
+      const adsStore = useAdsStore()
+
+      // Mock failed ad load
+      vi.mocked(adsStore.loadBanner).mockRejectedValueOnce(new Error('Ad load failed'))
+
+      try {
+        await adsStore.showBanner()
+      } catch (error) {
+        // Expected
+      }
+
+      expect(adsStore.failedLoadsCount).toBe(1)
+    })
+  })
+})
+```
+
+#### Реализация: Ads Store
+
+```typescript
+// src/stores/ads.ts
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import { useSettingsStore } from './settings'
+import { AdMob, BannerAdOptions, BannerAdSize, BannerAdPosition, InterstitialAdOptions } from '@capacitor-community/admob'
+
+export const useAdsStore = defineStore('ads', () => {
+  // State
+  const isInitialized = ref(false)
+  const isBannerVisible = ref(false)
+  const bannerPosition = ref<'top' | 'bottom'>('bottom')
+  const lastInterstitialTime = ref<number>(0)
+  const lastInterstitialTrigger = ref<string | null>(null)
+  const impressionsCount = ref(0)
+  const failedLoadsCount = ref(0)
+
+  // Constants
+  const INTERSTITIAL_COOLDOWN = 30000 // 30 seconds
+  const BANNER_AD_UNIT_ID = import.meta.env.VITE_ADMOB_BANNER_ID
+  const INTERSTITIAL_AD_UNIT_ID = import.meta.env.VITE_ADMOB_INTERSTITIAL_ID
+
+  // Getters
+  const shouldShowAds = computed(() => {
+    const settingsStore = useSettingsStore()
+    return !settingsStore.isPro
+  })
+
+  const canShowInterstitial = computed(() => {
+    const now = Date.now()
+    return now - lastInterstitialTime.value >= INTERSTITIAL_COOLDOWN
+  })
+
+  // Actions
+  async function initializeAds() {
+    if (!shouldShowAds.value) {
+      console.log('Ads disabled for Pro users')
+      return
+    }
+
+    try {
+      await AdMob.initialize({
+        requestTrackingAuthorization: true,
+        testingDevices: import.meta.env.DEV ? ['YOUR_TEST_DEVICE_ID'] : [],
+        initializeForTesting: import.meta.env.DEV
+      })
+
+      isInitialized.value = true
+      console.log('AdMob initialized')
+    } catch (error) {
+      console.error('Failed to initialize AdMob:', error)
+      throw error
+    }
+  }
+
+  async function showBanner() {
+    if (!shouldShowAds.value || !isInitialized.value) {
+      return
+    }
+
+    try {
+      const options: BannerAdOptions = {
+        adId: BANNER_AD_UNIT_ID,
+        adSize: BannerAdSize.ADAPTIVE_BANNER,
+        position: BannerAdPosition.BOTTOM_CENTER,
+        margin: 0
+      }
+
+      await AdMob.showBanner(options)
+      isBannerVisible.value = true
+      impressionsCount.value++
+
+      console.log('Banner ad shown')
+    } catch (error) {
+      console.error('Failed to show banner:', error)
+      failedLoadsCount.value++
+      throw error
+    }
+  }
+
+  async function hideBanner() {
+    try {
+      await AdMob.hideBanner()
+      isBannerVisible.value = false
+      console.log('Banner ad hidden')
+    } catch (error) {
+      console.error('Failed to hide banner:', error)
+      throw error
+    }
+  }
+
+  async function removeBanner() {
+    try {
+      await AdMob.removeBanner()
+      isBannerVisible.value = false
+      console.log('Banner ad removed')
+    } catch (error) {
+      console.error('Failed to remove banner:', error)
+      throw error
+    }
+  }
+
+  async function showInterstitial(trigger: string): Promise<boolean> {
+    if (!shouldShowAds.value || !isInitialized.value) {
+      return false
+    }
+
+    if (!canShowInterstitial.value) {
+      console.log('Interstitial on cooldown')
+      return false
+    }
+
+    try {
+      const options: InterstitialAdOptions = {
+        adId: INTERSTITIAL_AD_UNIT_ID
+      }
+
+      await AdMob.prepareInterstitial(options)
+      await AdMob.showInterstitial()
+
+      lastInterstitialTime.value = Date.now()
+      lastInterstitialTrigger.value = trigger
+      impressionsCount.value++
+
+      console.log(`Interstitial ad shown (trigger: ${trigger})`)
+      return true
+    } catch (error) {
+      console.error('Failed to show interstitial:', error)
+      failedLoadsCount.value++
+      return false
+    }
+  }
+
+  async function handleProUpgrade() {
+    if (isBannerVisible.value) {
+      await removeBanner()
+    }
+
+    lastInterstitialTime.value = 0
+    lastInterstitialTrigger.value = null
+
+    console.log('Ads disabled after Pro upgrade')
+  }
+
+  return {
+    // State
+    isInitialized,
+    isBannerVisible,
+    bannerPosition,
+    lastInterstitialTrigger,
+    impressionsCount,
+    failedLoadsCount,
+
+    // Getters
+    shouldShowAds,
+    canShowInterstitial,
+
+    // Actions
+    initializeAds,
+    showBanner,
+    hideBanner,
+    removeBanner,
+    showInterstitial,
+    handleProUpgrade
+  }
+})
+```
+
+#### Использование в компонентах
+
+```vue
+<!-- src/components/common/AdBanner.vue -->
+<template>
+  <div v-if="adsStore.shouldShowAds && adsStore.isBannerVisible" class="ad-banner-placeholder">
+    <!-- Placeholder для баннера AdMob -->
+    <!-- Реальная реклама отображается нативно поверх WebView -->
+  </div>
+</template>
+
+<script setup lang="ts">
+import { onMounted, onUnmounted } from 'vue'
+import { useAdsStore } from '@/stores/ads'
+
+const adsStore = useAdsStore()
+
+onMounted(async () => {
+  if (adsStore.shouldShowAds) {
+    await adsStore.showBanner()
+  }
+})
+
+onUnmounted(async () => {
+  if (adsStore.isBannerVisible) {
+    await adsStore.hideBanner()
+  }
+})
+</script>
+
+<style scoped>
+.ad-banner-placeholder {
+  height: 50px; /* Резерв места под баннер */
+  background: transparent;
+}
+</style>
+```
+
+#### Триггеры показа рекламы
+
+**Banner Ad:**
+- Показывается постоянно внизу всех экранов
+- Автоматически скрывается при переходе на некоторые экраны (например, во время оформления заказа)
+
+**Interstitial Ad:**
+```typescript
+// При сохранении рецепта
+await recipesStore.addRecipe(recipeData)
+if (adsStore.shouldShowAds) {
+  await adsStore.showInterstitial('recipe_saved')
+}
+
+// При попытке экспорта (для Free пользователей)
+if (!settingsStore.isPro) {
+  await adsStore.showInterstitial('export_attempt')
+  // Показать paywall
+}
+```
+
+#### Локализация сообщений
+
+```json
+// i18n/en.json
+{
+  "ads": {
+    "loading": "Loading ad...",
+    "failedToLoad": "Failed to load ad",
+    "removeAds": "Remove Ads",
+    "upgradeToPro": "Upgrade to Pro to remove all ads"
+  }
+}
+
+// i18n/ru.json
+{
+  "ads": {
+    "loading": "Загрузка рекламы...",
+    "failedToLoad": "Не удалось загрузить рекламу",
+    "removeAds": "Убрать рекламу",
+    "upgradeToPro": "Перейдите на Pro чтобы убрать всю рекламу"
+  }
+}
+
+// i18n/es.json, de.json, fr.json, zh.json, kk.json аналогично
+```
+
 ### Контрольная точка Фазы 6
 
 **Критерии завершения:**
@@ -2961,15 +3417,384 @@ describe('Free Version Limits', () => {
 - ✅ RASP защита работает
 - ✅ Лимиты Free версии реализованы
 - ✅ In-App Purchase интегрирован
-- ✅ Все тесты безопасности проходят
+- ✅ **AdMob интегрирован и протестирован**
+- ✅ **Banner и Interstitial реклама работают**
+- ✅ **Реклама отключается для Pro пользователей**
+- ✅ Все тесты безопасности и монетизации проходят
 
 ---
 
-## Фаза 7: Экспорт/Импорт данных
+## Фаза 7: Кастомизация чека (Pro Feature)
+
+**Длительность:** 1.5-2 недели
+
+### 7.1 Настройки чека - Settings Store расширение
+
+#### TDD: Тесты для настроек чека
+
+```typescript
+// src/__tests__/unit/stores/receiptSettings.test.ts
+import { describe, it, expect, beforeEach } from 'vitest'
+import { setActivePinia, createPinia } from 'pinia'
+import { useReceiptSettingsStore } from '@/stores/receiptSettings'
+import { useSettingsStore } from '@/stores/settings'
+import { useSecurityStore } from '@/stores/security'
+
+describe('Receipt Settings Store', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  describe('Access Control', () => {
+    it('should block access to receipt settings for Free users', () => {
+      const receiptStore = useReceiptSettingsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = false
+
+      expect(receiptStore.canCustomizeReceipt).toBe(false)
+    })
+
+    it('should allow access to receipt settings for Pro users', () => {
+      const receiptStore = useReceiptSettingsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = true
+
+      expect(receiptStore.canCustomizeReceipt).toBe(true)
+    })
+
+    it('should block access when device is compromised even for Pro users', () => {
+      const receiptStore = useReceiptSettingsStore()
+      const settingsStore = useSettingsStore()
+      const securityStore = useSecurityStore()
+
+      settingsStore.isPro = true
+      securityStore.isDeviceCompromised = true
+
+      expect(receiptStore.canCustomizeReceipt).toBe(false)
+    })
+  })
+
+  describe('Logo Upload', () => {
+    it('should allow uploading logo for Pro users', async () => {
+      const receiptStore = useReceiptSettingsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = true
+
+      const result = await receiptStore.uploadLogo('path/to/logo.png')
+
+      expect(result.success).toBe(true)
+      expect(receiptStore.settings.logoPath).toBe('path/to/logo.png')
+    })
+
+    it('should reject logo upload for Free users', async () => {
+      const receiptStore = useReceiptSettingsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = false
+
+      const result = await receiptStore.uploadLogo('path/to/logo.png')
+
+      expect(result.success).toBe(false)
+      expect(result.error).toBe('pro_feature_required')
+      expect(result.showPaywall).toBe(true)
+    })
+
+    it('should validate logo file size', async () => {
+      const receiptStore = useReceiptSettingsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = true
+
+      // Mock large file (> 2MB)
+      const result = await receiptStore.uploadLogo('large-logo.png', { size: 3000000 })
+
+      expect(result.success).toBe(false)
+      expect(result.error).toBe('file_too_large')
+    })
+
+    it('should validate logo file format', async () => {
+      const receiptStore = useReceiptSettingsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = true
+
+      const result = await receiptStore.uploadLogo('logo.bmp')
+
+      expect(result.success).toBe(false)
+      expect(result.error).toBe('invalid_format')
+    })
+  })
+
+  describe('Color Customization', () => {
+    it('should update background color for Pro users', async () => {
+      const receiptStore = useReceiptSettingsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = true
+
+      const result = await receiptStore.updateBackgroundColor('#FFE5E5')
+
+      expect(result.success).toBe(true)
+      expect(receiptStore.settings.backgroundColor).toBe('#FFE5E5')
+    })
+
+    it('should update background opacity', async () => {
+      const receiptStore = useReceiptSettingsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = true
+
+      await receiptStore.updateBackgroundOpacity(80)
+
+      expect(receiptStore.settings.backgroundOpacity).toBe(80)
+    })
+
+    it('should update logo opacity', async () => {
+      const receiptStore = useReceiptSettingsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = true
+
+      await receiptStore.updateLogoOpacity(50)
+
+      expect(receiptStore.settings.logoOpacity).toBe(50)
+    })
+
+    it('should validate opacity range (0-100)', async () => {
+      const receiptStore = useReceiptSettingsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = true
+
+      const result = await receiptStore.updateLogoOpacity(150)
+
+      expect(result.success).toBe(false)
+      expect(result.error).toBe('invalid_opacity')
+    })
+
+    it('should update text color', async () => {
+      const receiptStore = useReceiptSettingsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = true
+
+      await receiptStore.updateTextColor('#000000')
+
+      expect(receiptStore.settings.textColor).toBe('#000000')
+    })
+  })
+
+  describe('Business Contact Information', () => {
+    it('should save business name', async () => {
+      const receiptStore = useReceiptSettingsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = true
+
+      await receiptStore.updateBusinessInfo({ name: 'Sweet Dreams Bakery' })
+
+      expect(receiptStore.settings.businessName).toBe('Sweet Dreams Bakery')
+    })
+
+    it('should save contact phone', async () => {
+      const receiptStore = useReceiptSettingsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = true
+
+      await receiptStore.updateBusinessInfo({ phone: '+1234567890' })
+
+      expect(receiptStore.settings.contactPhone).toBe('+1234567890')
+    })
+
+    it('should save Instagram handle', async () => {
+      const receiptStore = useReceiptSettingsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = true
+
+      await receiptStore.updateBusinessInfo({ instagram: '@sweetdreams' })
+
+      expect(receiptStore.settings.instagram).toBe('@sweetdreams')
+    })
+
+    it('should save website URL', async () => {
+      const receiptStore = useReceiptSettingsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = true
+
+      await receiptStore.updateBusinessInfo({ website: 'https://sweetdreams.com' })
+
+      expect(receiptStore.settings.website).toBe('https://sweetdreams.com')
+    })
+  })
+
+  describe('Templates', () => {
+    it('should save current settings as template', async () => {
+      const receiptStore = useReceiptSettingsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = true
+
+      receiptStore.settings.backgroundColor = '#FFE5E5'
+      receiptStore.settings.textColor = '#000000'
+
+      const result = await receiptStore.saveTemplate('Pink Theme')
+
+      expect(result.success).toBe(true)
+      expect(receiptStore.templates).toHaveLength(1)
+      expect(receiptStore.templates[0].name).toBe('Pink Theme')
+    })
+
+    it('should load template', async () => {
+      const receiptStore = useReceiptSettingsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = true
+
+      // Save template
+      receiptStore.settings.backgroundColor = '#FFE5E5'
+      await receiptStore.saveTemplate('Pink Theme')
+
+      // Change settings
+      receiptStore.settings.backgroundColor = '#000000'
+
+      // Load template
+      await receiptStore.loadTemplate(receiptStore.templates[0].id)
+
+      expect(receiptStore.settings.backgroundColor).toBe('#FFE5E5')
+    })
+
+    it('should delete template', async () => {
+      const receiptStore = useReceiptSettingsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = true
+
+      await receiptStore.saveTemplate('Template 1')
+      const templateId = receiptStore.templates[0].id
+
+      await receiptStore.deleteTemplate(templateId)
+
+      expect(receiptStore.templates).toHaveLength(0)
+    })
+  })
+
+  describe('Watermark', () => {
+    it('should include watermark in Free version', () => {
+      const receiptStore = useReceiptSettingsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = false
+
+      expect(receiptStore.shouldShowWatermark).toBe(true)
+      expect(receiptStore.watermarkText).toContain('CakeCost')
+    })
+
+    it('should NOT include watermark in Pro version', () => {
+      const receiptStore = useReceiptSettingsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = true
+
+      expect(receiptStore.shouldShowWatermark).toBe(false)
+    })
+  })
+
+  describe('Preview', () => {
+    it('should generate preview with current settings', () => {
+      const receiptStore = useReceiptSettingsStore()
+      const settingsStore = useSettingsStore()
+
+      settingsStore.isPro = true
+
+      receiptStore.settings.backgroundColor = '#FFE5E5'
+      receiptStore.settings.businessName = 'Sweet Dreams'
+
+      const preview = receiptStore.generatePreview()
+
+      expect(preview.backgroundColor).toBe('#FFE5E5')
+      expect(preview.businessName).toBe('Sweet Dreams')
+    })
+  })
+})
+```
+
+### 7.2 Локализация для настроек чека
+
+```json
+// i18n/en.json
+{
+  "receiptSettings": {
+    "title": "Receipt Customization",
+    "proFeature": "Pro Feature",
+    "upgradeMessage": "Upgrade to Pro to customize your receipts",
+    "logo": {
+      "title": "Logo",
+      "upload": "Upload Logo",
+      "remove": "Remove Logo",
+      "opacity": "Logo Opacity",
+      "sizeLimit": "Maximum file size: 2MB",
+      "formatError": "Only PNG and JPG formats are supported",
+      "tooLarge": "File is too large. Maximum 2MB"
+    },
+    "colors": {
+      "background": "Background Color",
+      "backgroundOpacity": "Background Opacity",
+      "text": "Text Color"
+    },
+    "business": {
+      "title": "Business Information",
+      "name": "Business Name",
+      "phone": "Contact Phone",
+      "instagram": "Instagram",
+      "website": "Website"
+    },
+    "templates": {
+      "title": "Templates",
+      "save": "Save as Template",
+      "load": "Load Template",
+      "delete": "Delete Template",
+      "name": "Template Name"
+    },
+    "preview": {
+      "title": "Preview",
+      "generate": "Generate Preview"
+    },
+    "watermark": {
+      "free": "Made with CakeCost",
+      "info": "Watermark is removed in Pro version"
+    }
+  }
+}
+
+// i18n/ru.json, es.json, de.json, fr.json, zh.json, kk.json - аналогичные переводы
+```
+
+### Контрольная точка Фазы 7
+
+**Критерии завершения:**
+- ✅ Receipt Settings Store создан и протестирован
+- ✅ Загрузка логотипа работает (только Pro)
+- ✅ Кастомизация цветов реализована (только Pro)
+- ✅ Настройка прозрачности работает
+- ✅ Бизнес-контакты сохраняются
+- ✅ Система шаблонов работает
+- ✅ Водяной знак отображается в Free версии
+- ✅ Все функции заблокированы для Free пользователей
+- ✅ Локализация всех текстов завершена
+
+---
+
+## Фаза 8: Экспорт/Импорт данных
 
 **Длительность:** 1 неделя
 
-### 7.1 Экспорт данных
+### 8.1 Экспорт данных
 
 #### TDD: Тесты для экспорта
 
@@ -3074,7 +3899,7 @@ describe('Export Data', () => {
 })
 ```
 
-### 7.2 Импорт данных с валидацией
+### 8.2 Импорт данных с валидацией
 
 #### TDD: Тесты для импорта
 
@@ -3288,7 +4113,7 @@ describe('Import Data', () => {
 })
 ```
 
-### Контрольная точка Фазы 7
+### Контрольная точка Фазы 8
 
 **Критерии завершения:**
 - ✅ Экспорт данных в JSON работает
@@ -3300,11 +4125,11 @@ describe('Import Data', () => {
 
 ---
 
-## Фаза 8: Полировка и релиз
+## Фаза 9: Полировка и релиз
 
 **Длительность:** 1-2 недели
 
-### 8.1 E2E тесты (опционально)
+### 9.1 E2E тесты (опционально)
 
 ```typescript
 // e2e/critical-flows.spec.ts
@@ -3383,7 +4208,7 @@ test.describe('Critical User Flows', () => {
 })
 ```
 
-### 8.2 Покрытие тестами
+### 9.2 Покрытие тестами
 
 **Целевые метрики:**
 - Unit тесты: 85%+ покрытие
@@ -3396,7 +4221,7 @@ test.describe('Critical User Flows', () => {
 npm run test:coverage
 ```
 
-### 8.3 Performance тесты
+### 9.3 Performance тесты
 
 ```typescript
 // src/__tests__/performance/recipe-calculation.test.ts
@@ -3465,7 +4290,7 @@ describe('Performance Tests', () => {
 })
 ```
 
-### Контрольная точка Фазы 8
+### Контрольная точка Фазы 9
 
 **Критерии завершения:**
 - ✅ Все unit/component/integration тесты проходят
@@ -3543,9 +4368,12 @@ describe('Performance Tests', () => {
 - [ ] Рецепты: CRUD + реактивный пересчет
 - [ ] Калькулятор заказов работает
 - [ ] Экспорт/импорт данных
-- [ ] Локализация (4 языка)
+- [ ] Локализация (7 языков)
 - [ ] Монетизация (Free/Pro)
 - [ ] Безопасность (Secure Storage + RASP)
+- [ ] **AdMob реклама (Banner + Interstitial)**
+- [ ] **Кастомизация чека (Pro: логотип, цвета, контакты)**
+- [ ] **Водяной знак в Free версии**
 
 ### Качество
 - [ ] Нет ESLint ошибок
@@ -3573,7 +4401,7 @@ describe('Performance Tests', () => {
 
 ---
 
-**Общая длительность проекта с TDD:** 12-16 недель
+**Общая длительность проекта с TDD:** 14-18 недель
 
 **Ключевое преимущество TDD:**
 - Высокое качество кода
