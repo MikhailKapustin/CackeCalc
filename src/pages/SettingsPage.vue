@@ -76,6 +76,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSettingsStore, type Currency, type ThemeMode } from '@/stores/settings'
+import { applyTheme } from '@/utils/theme'
 import LanguageSwitcher from '@/components/settings/LanguageSwitcher.vue'
 
 const { t } = useI18n()
@@ -101,7 +102,10 @@ const changeCurrency = async (newCurrency: Currency) => {
 }
 
 const changeTheme = async (newTheme: ThemeMode) => {
+  // Save to database
   await settingsStore.saveTheme(newTheme)
+  // Apply theme immediately (the watcher in boot/theme.ts will also apply it)
+  applyTheme(newTheme)
 }
 </script>
 

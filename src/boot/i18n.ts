@@ -75,17 +75,22 @@ export default boot(async ({ app }) => {
   // Set i18n instance on app
   app.use(i18n)
 
-  // Load settings from database to get saved language
+  // Load settings from database to get saved language and theme
   const { useSettingsStore } = await import('@/stores/settings')
+  const { initializeTheme } = await import('@/boot/theme')
   const settingsStore = useSettingsStore()
 
   try {
     await settingsStore.loadSettings()
     // Set language from database
     setI18nLanguage(settingsStore.language as SupportedLocale)
+    // Initialize theme system
+    await initializeTheme()
   } catch (error) {
     console.warn('Failed to load settings from database, using browser locale:', error)
     // Set initial language from browser
     setI18nLanguage(i18n.global.locale.value)
+    // Initialize theme with default
+    await initializeTheme()
   }
 })
