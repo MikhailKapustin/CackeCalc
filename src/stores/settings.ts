@@ -46,6 +46,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const theme = ref<ThemeMode>('light')
   const currency = ref<Currency>('₽')
   const language = ref<Language>('en')
+  const isPro = ref(false) // Pro version status (loaded from Secure Storage, not DB)
   const db = ref<SQLiteDBConnection | null>(null)
 
   // Getters (computed properties)
@@ -163,6 +164,7 @@ export const useSettingsStore = defineStore('settings', () => {
     theme,
     currency,
     language,
+    isPro,
     // Getters
     isDarkMode,
     isAutoTheme,

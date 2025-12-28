@@ -2,7 +2,20 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Recipe, RecipeInput, RecipeUpdate } from '@/types/recipe'
 import { useIngredientsStore } from './ingredients'
+import { useSettingsStore } from './settings'
 import { getDatabase } from '@/database/db'
+
+// Free version limits
+const FREE_RECIPES_LIMIT = 5
+
+// Result type for operations that can hit limits
+export interface RecipeOperationResult {
+  success: boolean
+  error?: string
+  showPaywall?: boolean
+  message?: string
+  recipe?: Recipe
+}
 
 export const useRecipesStore = defineStore('recipes', () => {
   // State
@@ -60,6 +73,16 @@ export const useRecipesStore = defineStore('recipes', () => {
     }
   })
 
+  // Free version limits
+  const maxRecipes = computed(() => {
+    const settingsStore = useSettingsStore()
+    return settingsStore.isPro ? Infinity : FREE_RECIPES_LIMIT
+  })
+
+  const isAtLimit = computed(() => {
+    return recipes.value.length >= maxRecipes.value
+  })
+
   // Actions
   async function loadRecipes() {
     try {
@@ -99,8 +122,18 @@ export const useRecipesStore = defineStore('recipes', () => {
     }
   }
 
-  async function addRecipe(input: RecipeInput) {
+  async function addRecipe(input: RecipeInput): Promise<RecipeOperationResult> {
     try {
+      // Check free version limit
+      if (isAtLimit.value) {
+        return {
+          success: false,
+          error: 'free_limit_reached',
+          showPaywall: true,
+          message: `В бесплатной версии доступно максимум ${FREE_RECIPES_LIMIT} рецептов. Приобретите Pro версию для неограниченного количества рецептов.`
+        }
+      }
+
       const db = await getDatabase()
 
       // Calculate initial cost
@@ -155,14 +188,18 @@ export const useRecipesStore = defineStore('recipes', () => {
 
       recipes.value.push(newRecipe)
 
-      return newRecipe
+      return {
+        success: true,
+        recipe: newRecipe,
+        showPaywall: false
+      }
     } catch (error) {
       console.error('Error adding recipe:', error)
       throw error
     }
   }
 
-  async function updateRecipe(id: number, update: RecipeUpdate) {
+  async function updateRecipe(id: number, update: RecipeUpdate): Promise<RecipeOperationResult> {
     try {
       const db = await getDatabase()
       const recipe = recipes.value.find(r => r.id === id)
@@ -232,6 +269,12 @@ export const useRecipesStore = defineStore('recipes', () => {
           profitAmount,
           profitPercent
         }
+      }
+
+      return {
+        success: true,
+        recipe: recipes.value[index],
+        showPaywall: false
       }
     } catch (error) {
       console.error('Error updating recipe:', error)
@@ -317,6 +360,8 @@ export const useRecipesStore = defineStore('recipes', () => {
     getRecipeCost,
     getRecipeProfit,
     getRecipeProfitPercent,
+    maxRecipes,
+    isAtLimit,
 
     // Actions
     loadRecipes,

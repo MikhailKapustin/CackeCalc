@@ -1,8 +1,21 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Ingredient, IngredientInput, IngredientUpdate } from '@/types/ingredient'
+import { useSettingsStore } from './settings'
 import { getDatabase } from '@/database/db'
 import { calculateBasePrice } from '@/utils/units'
+
+// Free version limits
+const FREE_INGREDIENTS_LIMIT = 15
+
+// Result type for operations that can hit limits
+export interface IngredientOperationResult {
+  success: boolean
+  error?: string
+  showPaywall?: boolean
+  message?: string
+  ingredient?: Ingredient
+}
 
 export const useIngredientsStore = defineStore('ingredients', () => {
   // State
@@ -25,6 +38,16 @@ export const useIngredientsStore = defineStore('ingredients', () => {
     return (id: number) => {
       return ingredients.value.find(ingredient => ingredient.id === id)
     }
+  })
+
+  // Free version limits
+  const maxIngredients = computed(() => {
+    const settingsStore = useSettingsStore()
+    return settingsStore.isPro ? Infinity : FREE_INGREDIENTS_LIMIT
+  })
+
+  const isAtLimit = computed(() => {
+    return ingredients.value.length >= maxIngredients.value
   })
 
   // Actions
@@ -50,8 +73,18 @@ export const useIngredientsStore = defineStore('ingredients', () => {
     }
   }
 
-  async function addIngredient(input: IngredientInput) {
+  async function addIngredient(input: IngredientInput): Promise<IngredientOperationResult> {
     try {
+      // Check free version limit
+      if (isAtLimit.value) {
+        return {
+          success: false,
+          error: 'free_limit_reached',
+          showPaywall: true,
+          message: `В бесплатной версии доступно максимум ${FREE_INGREDIENTS_LIMIT} ингредиентов. Приобретите Pro версию для неограниченного количества ингредиентов.`
+        }
+      }
+
       const db = await getDatabase()
 
       // Calculate price per base unit
@@ -88,14 +121,18 @@ export const useIngredientsStore = defineStore('ingredients', () => {
 
       ingredients.value.push(newIngredient)
 
-      return newIngredient
+      return {
+        success: true,
+        ingredient: newIngredient,
+        showPaywall: false
+      }
     } catch (error) {
       console.error('Error adding ingredient:', error)
       throw error
     }
   }
 
-  async function updateIngredient(id: number, update: IngredientUpdate) {
+  async function updateIngredient(id: number, update: IngredientUpdate): Promise<IngredientOperationResult> {
     try {
       const db = await getDatabase()
       const ingredient = ingredients.value.find(i => i.id === id)
@@ -150,6 +187,12 @@ export const useIngredientsStore = defineStore('ingredients', () => {
       // Trigger recipe recalculation
       const { useRecipesStore } = await import('./recipes')
       await useRecipesStore().recalculateRecipesUsingIngredient(id)
+
+      return {
+        success: true,
+        ingredient: ingredients.value[index],
+        showPaywall: false
+      }
     } catch (error) {
       console.error('Error updating ingredient:', error)
       throw error
@@ -182,6 +225,8 @@ export const useIngredientsStore = defineStore('ingredients', () => {
     // Getters
     filteredIngredients,
     getById,
+    maxIngredients,
+    isAtLimit,
 
     // Actions
     loadIngredients,

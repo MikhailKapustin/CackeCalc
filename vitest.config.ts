@@ -22,7 +22,10 @@ export default defineConfig({
       exclude: ['node_modules/', 'test/', 'dist/', '**/*.config.ts']
     },
     alias: {
-      '@capacitor-community/sqlite': path.resolve(__dirname, './src/__tests__/__mocks__/capacitor-sqlite.ts')
+      '@capacitor-community/sqlite': path.resolve(__dirname, './src/__tests__/__mocks__/capacitor-sqlite.ts'),
+      '@aparajita/capacitor-secure-storage': path.resolve(__dirname, './src/__tests__/__mocks__/capacitor-secure-storage.ts'),
+      'capacitor-plugin-purchase': path.resolve(__dirname, './src/__tests__/__mocks__/capacitor-plugin-purchase.ts'),
+      '@talsec/free-rasp-capacitor': path.resolve(__dirname, './src/__tests__/__mocks__/free-rasp-capacitor.ts')
     }
   },
   resolve: {
