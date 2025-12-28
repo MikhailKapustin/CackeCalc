@@ -23,7 +23,7 @@
           val => val > 0 || 'Цена должна быть положительным числом'
         ]"
         outlined
-        suffix="₽"
+        :suffix="settingsStore.currency"
         lazy-rules
         @focus="onPriceFocus"
       />
@@ -59,7 +59,7 @@
 
       <!-- Цена за базовую единицу (только отображение) -->
       <div v-if="pricePerUnit !== null" class="text-caption text-grey-7" data-test="price-per-unit">
-        Цена за базовую единицу: {{ pricePerUnit.toFixed(2) }} ₽/{{ baseUnitLabel }}
+        Цена за базовую единицу: {{ pricePerUnit.toFixed(2) }} {{ settingsStore.currency }}/{{ baseUnitLabel }}
       </div>
 
       <!-- Валидация ошибок -->
@@ -91,6 +91,7 @@ import { ref, computed, watch } from 'vue'
 import type { Ingredient, IngredientInput, PurchaseUnit, MeasurementType } from '@/types/ingredient'
 import { calculateBasePrice } from '@/utils/units'
 import { useIngredientsStore } from '@/stores/ingredients'
+import { useSettingsStore } from '@/stores/settings'
 
 interface Props {
   ingredient?: Ingredient
@@ -107,6 +108,8 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<Emits>()
+
+const settingsStore = useSettingsStore()
 
 // Unit options grouped by type
 const unitOptions = [

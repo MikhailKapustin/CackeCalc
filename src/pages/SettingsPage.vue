@@ -81,14 +81,14 @@ import LanguageSwitcher from '@/components/settings/LanguageSwitcher.vue'
 const { t } = useI18n()
 const settingsStore = useSettingsStore()
 
-const currencyOptions = [
-  { label: '₽ - Russian Ruble', value: '₽' },
-  { label: '$ - US Dollar', value: '$' },
-  { label: '€ - Euro', value: '€' },
-  { label: '£ - British Pound', value: '£' },
-  { label: '₸ - Kazakhstani Tenge', value: '₸' },
-  { label: '₴ - Ukrainian Hryvnia', value: '₴' }
-]
+const currencyOptions = computed(() => [
+  { label: `₽ - ${t('currencies.ruble')}`, value: '₽' },
+  { label: `$ - ${t('currencies.dollar')}`, value: '$' },
+  { label: `€ - ${t('currencies.euro')}`, value: '€' },
+  { label: `£ - ${t('currencies.pound')}`, value: '£' },
+  { label: `₸ - ${t('currencies.tenge')}`, value: '₸' },
+  { label: `₴ - ${t('currencies.hryvnia')}`, value: '₴' }
+])
 
 const themeOptions = computed(() => [
   { label: t('settings.themeLight'), value: 'light' },

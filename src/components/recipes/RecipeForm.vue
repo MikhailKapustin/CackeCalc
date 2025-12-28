@@ -30,7 +30,7 @@
         label="Цена продажи"
         type="number"
         outlined
-        suffix="₽"
+        :suffix="settingsStore.currency"
         :rules="[
           val => val > 0 || 'Цена должна быть положительным числом'
         ]"
@@ -235,6 +235,7 @@
 import { ref, computed, watch } from 'vue'
 import { useIngredientsStore } from '@/stores/ingredients'
 import { useRecipesStore } from '@/stores/recipes'
+import { useSettingsStore } from '@/stores/settings'
 import type { Recipe, RecipeInput, RecipeItem, SellingUnit } from '@/types/recipe'
 
 interface Props {
@@ -255,6 +256,7 @@ const emit = defineEmits<Emits>()
 
 const ingredientsStore = useIngredientsStore()
 const recipesStore = useRecipesStore()
+const settingsStore = useSettingsStore()
 
 // Form data
 const formData = ref<{

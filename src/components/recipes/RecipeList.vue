@@ -58,10 +58,10 @@
           </QItemLabel>
           <QItemLabel caption>
             <div class="q-mt-xs">
-              <div>Себестоимость: {{ formatPrice(store.getRecipeCost(recipe)) }}</div>
-              <div>Цена продажи: {{ formatPrice(recipe.sellingPrice) }} / {{ getUnitLabel(recipe.sellingUnit) }}</div>
+              <div>Себестоимость: {{ formatPrice(store.getRecipeCost(recipe)) }} {{ settingsStore.currency }}</div>
+              <div>Цена продажи: {{ formatPrice(recipe.sellingPrice) }} {{ settingsStore.currency }} / {{ getUnitLabel(recipe.sellingUnit) }}</div>
               <div :class="getProfitColor(recipe)">
-                Прибыль: {{ formatPrice(store.getRecipeProfit(recipe)) }}
+                Прибыль: {{ formatPrice(store.getRecipeProfit(recipe)) }} {{ settingsStore.currency }}
                 ({{ Math.round(store.getRecipeProfitPercent(recipe)) }}%)
               </div>
             </div>
@@ -138,6 +138,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRecipesStore } from '@/stores/recipes'
+import { useSettingsStore } from '@/stores/settings'
 import type { Recipe, SellingUnit } from '@/types/recipe'
 
 interface Emits {
@@ -149,6 +150,7 @@ interface Emits {
 const emit = defineEmits<Emits>()
 
 const store = useRecipesStore()
+const settingsStore = useSettingsStore()
 
 // Delete confirmation
 const showDeleteDialog = ref(false)
@@ -169,11 +171,11 @@ async function handleDelete() {
 
 // Formatting helpers
 function formatPrice(price: number): string {
-  return new Intl.NumberFormat('ru-RU', {
-    style: 'currency',
-    currency: 'RUB',
-    minimumFractionDigits: 2
+  const formatted = new Intl.NumberFormat('ru-RU', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
   }).format(price)
+  return formatted.replace(/\u00A0/g, ' ')
 }
 
 function getUnitLabel(unit: SellingUnit): string {

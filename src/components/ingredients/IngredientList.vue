@@ -58,8 +58,8 @@
             <span v-html="highlightSearchTerm(ingredient.name)" />
           </QItemLabel>
           <QItemLabel caption>
-            {{ formatPrice(ingredient.purchasePrice) }} за {{ ingredient.purchaseAmount }} {{ getUnitLabel(ingredient.purchaseUnit) }}
-            • {{ formatPrice(ingredient.pricePerBaseUnit) }}/{{ getBaseUnitLabel(ingredient.type) }}
+            {{ formatPrice(ingredient.purchasePrice) }} {{ settingsStore.currency }} за {{ ingredient.purchaseAmount }} {{ getUnitLabel(ingredient.purchaseUnit) }}
+            • {{ formatPrice(ingredient.pricePerBaseUnit) }} {{ settingsStore.currency }}/{{ getBaseUnitLabel(ingredient.type) }}
           </QItemLabel>
         </QItemSection>
 
@@ -122,6 +122,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useIngredientsStore } from '@/stores/ingredients'
+import { useSettingsStore } from '@/stores/settings'
 import type { Ingredient, PurchaseUnit, MeasurementType } from '@/types/ingredient'
 
 interface Props {
@@ -137,6 +138,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const store = useIngredientsStore()
+const settingsStore = useSettingsStore()
 
 // Delete confirmation
 const showDeleteDialog = ref(false)
@@ -157,11 +159,11 @@ async function handleDelete() {
 
 // Formatting helpers
 function formatPrice(price: number): string {
-  return new Intl.NumberFormat('ru-RU', {
-    style: 'currency',
-    currency: 'RUB',
-    minimumFractionDigits: 2
+  const formatted = new Intl.NumberFormat('ru-RU', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
   }).format(price)
+  return formatted.replace(/\u00A0/g, ' ')
 }
 
 function getUnitLabel(unit: PurchaseUnit): string {

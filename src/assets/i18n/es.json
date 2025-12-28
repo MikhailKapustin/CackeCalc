@@ -80,6 +80,14 @@
     "instagram": "Instagram",
     "website": "Sitio Web"
   },
+  "currencies": {
+    "ruble": "Rublo ruso",
+    "dollar": "Dólar estadounidense",
+    "euro": "Euro",
+    "pound": "Libra esterlina",
+    "tenge": "Tenge kazajo",
+    "hryvnia": "Grivna ucraniana"
+  },
   "common": {
     "save": "Guardar",
     "cancel": "Cancelar",

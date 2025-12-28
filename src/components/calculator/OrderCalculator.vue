@@ -35,12 +35,12 @@
       <!-- Total price display -->
       <div v-if="selectedRecipe && weight > 0" class="q-mt-md">
         <div class="text-h5" data-test="total-price">
-          💰 ИТОГО: {{ formattedTotal }} ₽
+          💰 ИТОГО: {{ formattedTotal }} {{ settingsStore.currency }}
         </div>
 
         <!-- Profit for confectioner (internal view only) -->
         <div data-test="profit" class="text-caption text-grey-7 q-mt-sm">
-          Ваша прибыль: {{ formattedProfit }} ₽
+          Ваша прибыль: {{ formattedProfit }} {{ settingsStore.currency }}
         </div>
       </div>
 
@@ -82,6 +82,7 @@ import { useQuasar } from 'quasar'
 import { Share } from '@capacitor/share'
 import { Filesystem, Directory } from '@capacitor/filesystem'
 import { useRecipesStore } from '@/stores/recipes'
+import { useSettingsStore } from '@/stores/settings'
 import { calculateOrderTotal } from '@/utils/receiptGenerator'
 import { generateReceiptImage, generateReceiptImageDataURL } from '@/utils/receiptImageGenerator'
 import type { Recipe } from '@/types/recipe'
@@ -99,6 +100,7 @@ const emit = defineEmits<{
 
 const $q = useQuasar()
 const recipesStore = useRecipesStore()
+const settingsStore = useSettingsStore()
 
 const selectedRecipeId = ref<number | null>(props.recipe?.id || null)
 const weight = ref<number>(0)
@@ -158,7 +160,7 @@ const receiptData = computed(() => {
     pricePerUnit: selectedRecipe.value.sellingPrice,
     unit: unitLabel.value,
     total: totalPrice.value,
-    currency: '₽'
+    currency: settingsStore.currency
   }
 })
 

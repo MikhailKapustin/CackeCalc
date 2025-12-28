@@ -80,6 +80,14 @@
     "instagram": "Instagram",
     "website": "Веб-сайт"
   },
+  "currencies": {
+    "ruble": "Ресей рублі",
+    "dollar": "АҚШ доллары",
+    "euro": "Еуро",
+    "pound": "Британ фунты",
+    "tenge": "Қазақстан теңгесі",
+    "hryvnia": "Украин гривнасы"
+  },
   "common": {
     "save": "Сақтау",
     "cancel": "Болдырмау",
