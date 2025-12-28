@@ -121,18 +121,24 @@
           <QInput
             v-model.number="ingredientAmount"
             data-test="ingredient-amount"
-            label="Количество"
+            :label="`Количество${selectedIngredientUnitLabel ? ' (' + selectedIngredientUnitLabel + ')' : ''}`"
             type="number"
             outlined
             min="0"
             step="0.01"
+            :suffix="selectedIngredientUnitLabel"
             :rules="[
               val => val !== null && val !== '' || 'Введите количество',
               val => val > 0 || 'Количество должно быть больше нуля'
             ]"
             lazy-rules
+            :disable="!selectedIngredientId"
             @focus="onIngredientAmountFocus"
-          />
+          >
+            <template v-if="selectedIngredientId" v-slot:hint>
+              Укажите количество в базовых единицах ({{ selectedIngredientUnitLabel }})
+            </template>
+          </QInput>
 
           <div class="row q-gutter-sm">
             <QBtn
@@ -281,6 +287,18 @@ const availableIngredients = computed(() => {
   const addedIds = formData.value.items.map(item => item.ingredientId)
   return ingredientsStore.ingredients
     .filter(ing => !addedIds.includes(ing.id))
+})
+
+// Get unit label for selected ingredient in ingredient selector
+const selectedIngredientUnitLabel = computed(() => {
+  if (selectedIngredientId.value === null) return ''
+
+  const ingredient = ingredientsStore.getById(selectedIngredientId.value)
+  if (!ingredient) return ''
+
+  if (ingredient.type === 'weight') return 'г'
+  if (ingredient.type === 'volume') return 'мл'
+  return 'шт'
 })
 
 // Helper to get ingredient name

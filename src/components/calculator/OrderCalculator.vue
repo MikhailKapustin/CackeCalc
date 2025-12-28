@@ -59,7 +59,7 @@
       <div class="row q-gutter-sm q-mt-md">
         <QBtn
           v-if="selectedRecipe && weight > 0"
-          label="Отправить"
+          label="Отправить чек"
           color="primary"
           icon="share"
           data-test="share-button"
@@ -67,19 +67,10 @@
           class="col"
         />
         <QBtn
-          v-if="selectedRecipe && weight > 0"
-          label="Копировать"
-          color="secondary"
-          icon="content_copy"
-          outline
-          data-test="copy-button"
-          @click="handleCopy"
-          class="col"
-        />
-        <QBtn
           flat
           label="Закрыть"
           @click="emit('close')"
+          class="col"
         />
       </div>
   </div>
@@ -88,7 +79,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
-import { Clipboard } from '@capacitor/clipboard'
+import { Share } from '@capacitor/share'
+import { Filesystem, Directory } from '@capacitor/filesystem'
 import { useRecipesStore } from '@/stores/recipes'
 import { calculateOrderTotal } from '@/utils/receiptGenerator'
 import { generateReceiptImage, generateReceiptImageDataURL } from '@/utils/receiptImageGenerator'
@@ -203,33 +195,114 @@ async function handleShare() {
   if (!receiptData.value) return
 
   try {
-    const receiptBlob = await generateReceiptImage(receiptData.value)
-    emit('share', receiptBlob)
+    await shareReceipt()
   } catch (error) {
-    console.error('Failed to generate receipt image for sharing:', error)
+    console.error('Failed to share receipt:', error)
   }
 }
 
-async function handleCopy() {
-  if (!receiptImageUrl.value) return
+async function shareReceipt() {
+  if (!receiptData.value) return
 
   try {
-    // Copy image as base64 data URL to clipboard
-    await Clipboard.write({
-      image: receiptImageUrl.value
+    const receiptBlob = await generateReceiptImage(receiptData.value)
+
+    // Generate filename with timestamp
+    const timestamp = new Date().toISOString().slice(0, 10)
+    const filename = `receipt-${receiptData.value.recipeName}-${timestamp}.png`
+
+    // Convert blob to base64 for Capacitor Share
+    const reader = new FileReader()
+    const base64Promise = new Promise<string>((resolve, reject) => {
+      reader.onloadend = () => {
+        const base64 = reader.result as string
+        resolve(base64)
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(receiptBlob)
     })
 
-    $q.notify({
-      type: 'positive',
-      message: 'Чек скопирован в буфер обмена',
-      icon: 'content_copy'
-    })
-  } catch (error) {
-    console.error('Failed to copy receipt to clipboard:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Не удалось скопировать чек'
-    })
+    const base64Data = await base64Promise
+
+    // Try to use Capacitor Share API (works on mobile and web)
+    try {
+      // For Capacitor, we need to save the file first, then share it
+      const savedFile = await Filesystem.writeFile({
+        path: filename,
+        data: base64Data,
+        directory: Directory.Cache
+      })
+
+      await Share.share({
+        title: receiptData.value.recipeName,
+        text: `Чек заказа: ${receiptData.value.recipeName}`,
+        url: savedFile.uri,
+        dialogTitle: 'Отправить чек клиенту'
+      })
+
+      $q.notify({
+        type: 'positive',
+        message: 'Чек успешно отправлен',
+        icon: 'share'
+      })
+
+      // Auto-close calculator after successful share
+      emit('close')
+
+      // Clean up the temporary file after a delay
+      setTimeout(async () => {
+        try {
+          await Filesystem.deleteFile({
+            path: filename,
+            directory: Directory.Cache
+          })
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+      }, 5000)
+
+    } catch (shareError: any) {
+      // If Capacitor Share fails, try Web Share API
+      if ('share' in navigator && navigator.canShare) {
+        const file = new File([receiptBlob], filename, { type: 'image/png' })
+
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: receiptData.value.recipeName,
+            text: `Чек заказа: ${receiptData.value.recipeName}`
+          })
+
+          $q.notify({
+            type: 'positive',
+            message: 'Чек успешно отправлен',
+            icon: 'share'
+          })
+
+          emit('close')
+        } else {
+          throw new Error('Cannot share files')
+        }
+      } else {
+        // Last fallback: emit to parent component
+        emit('share', receiptBlob)
+        $q.notify({
+          type: 'info',
+          message: 'Используйте кнопку в системном диалоге для отправки',
+          icon: 'info'
+        })
+      }
+    }
+  } catch (error: any) {
+    // Don't show error if user cancelled the share dialog
+    if (error?.name !== 'AbortError') {
+      console.error('Failed to share receipt:', error)
+      $q.notify({
+        type: 'negative',
+        message: 'Не удалось отправить чек',
+        icon: 'error'
+      })
+    }
   }
 }
 </script>

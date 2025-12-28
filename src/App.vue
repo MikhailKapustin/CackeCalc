@@ -4,14 +4,15 @@
       <QHeader elevated>
         <QToolbar>
           <QToolbarTitle>
-            CakeCost - Калькулятор себестоимости
+            CakeCost
           </QToolbarTitle>
         </QToolbar>
 
         <!-- Navigation Tabs -->
         <QTabs v-model="currentTab" align="center" class="text-white">
-          <QTab name="ingredients" icon="kitchen" label="Ингредиенты" />
-          <QTab name="recipes" icon="cake" label="Рецепты" />
+          <QTab name="ingredients" icon="kitchen" :label="$t('ingredients.title')" />
+          <QTab name="recipes" icon="cake" :label="$t('recipes.title')" />
+          <QTab name="settings" icon="settings" :label="$t('settings.title')" />
         </QTabs>
       </QHeader>
 
@@ -25,6 +26,10 @@
           <QTabPanel name="recipes">
             <RecipesPage />
           </QTabPanel>
+
+          <QTabPanel name="settings">
+            <SettingsPage />
+          </QTabPanel>
         </QTabPanels>
       </QPageContainer>
     </QLayout>
@@ -35,6 +40,7 @@
 import { ref } from 'vue'
 import IngredientsPage from '@/pages/IngredientsPage.vue'
 import RecipesPage from '@/pages/RecipesPage.vue'
+import SettingsPage from '@/pages/SettingsPage.vue'
 
 const currentTab = ref('ingredients')
 </script>
