@@ -77,12 +77,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { Share } from '@capacitor/share'
 import { Filesystem, Directory } from '@capacitor/filesystem'
 import { useRecipesStore } from '@/stores/recipes'
 import { useSettingsStore } from '@/stores/settings'
+import { useReceiptSettingsStore } from '@/stores/receiptSettings'
 import { calculateOrderTotal } from '@/utils/receiptGenerator'
 import { generateReceiptImage, generateReceiptImageDataURL } from '@/utils/receiptImageGenerator'
 import type { Recipe } from '@/types/recipe'
@@ -101,6 +102,7 @@ const emit = defineEmits<{
 const $q = useQuasar()
 const recipesStore = useRecipesStore()
 const settingsStore = useSettingsStore()
+const receiptSettingsStore = useReceiptSettingsStore()
 
 const selectedRecipeId = ref<number | null>(props.recipe?.id || null)
 const weight = ref<number>(0)
@@ -110,6 +112,11 @@ const weightFocused = ref(false)
 
 // Receipt image preview
 const receiptImageUrl = ref<string>('')
+
+// Load receipt settings on mount
+onMounted(async () => {
+  await receiptSettingsStore.loadSettings()
+})
 
 // Watch for recipe prop changes and update selection
 watch(() => props.recipe, (newRecipe) => {
@@ -164,11 +171,18 @@ const receiptData = computed(() => {
   }
 })
 
+// Receipt customization (Pro feature)
+const receiptCustomization = computed(() => ({
+  settings: receiptSettingsStore.settings,
+  showWatermark: receiptSettingsStore.shouldShowWatermark,
+  watermarkText: receiptSettingsStore.watermarkText
+}))
+
 // Watch for changes and regenerate receipt image
 watch(receiptData, async (data) => {
   if (data) {
     try {
-      receiptImageUrl.value = await generateReceiptImageDataURL(data)
+      receiptImageUrl.value = await generateReceiptImageDataURL(data, receiptCustomization.value)
     } catch (error) {
       console.error('Failed to generate receipt image:', error)
       receiptImageUrl.value = ''
@@ -207,7 +221,7 @@ async function shareReceipt() {
   if (!receiptData.value) return
 
   try {
-    const receiptBlob = await generateReceiptImage(receiptData.value)
+    const receiptBlob = await generateReceiptImage(receiptData.value, receiptCustomization.value)
 
     // Generate filename with timestamp
     const timestamp = new Date().toISOString().slice(0, 10)

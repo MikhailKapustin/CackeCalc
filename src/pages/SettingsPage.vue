@@ -69,6 +69,11 @@
         </QItemSection>
       </QItem>
     </QList>
+
+    <!-- Receipt Customization Section (Pro Feature) -->
+    <div class="q-mt-lg">
+      <ReceiptCustomization />
+    </div>
   </QPage>
 </template>
 
@@ -78,6 +83,7 @@ import { useI18n } from 'vue-i18n'
 import { useSettingsStore, type Currency, type ThemeMode } from '@/stores/settings'
 import { applyTheme } from '@/utils/theme'
 import LanguageSwitcher from '@/components/settings/LanguageSwitcher.vue'
+import ReceiptCustomization from '@/components/settings/ReceiptCustomization.vue'
 
 const { t } = useI18n()
 const settingsStore = useSettingsStore()
