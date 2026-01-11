@@ -2,9 +2,23 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { saveProStatus, getProStatus, initializeProStatus } from '@/utils/secureStorage'
 import { SecureStoragePlugin } from '@aparajita/capacitor-secure-storage'
-import { InAppPurchase } from 'capacitor-plugin-purchase'
+import { Capacitor } from '@capacitor/core'
 
-// Моки автоматически применяются через vitest.config.ts aliases
+// Mock @revenuecat/purchases-capacitor
+const mockPurchases = {
+  restorePurchases: vi.fn()
+}
+
+vi.mock('@revenuecat/purchases-capacitor', () => ({
+  Purchases: mockPurchases
+}))
+
+// Mock Capacitor
+vi.mock('@capacitor/core', () => ({
+  Capacitor: {
+    isNativePlatform: vi.fn()
+  }
+}))
 
 describe('Secure Storage', () => {
   beforeEach(() => {
@@ -12,7 +26,14 @@ describe('Secure Storage', () => {
     // Reset mock implementations to default
     vi.mocked(SecureStoragePlugin.set).mockResolvedValue(undefined)
     vi.mocked(SecureStoragePlugin.get).mockResolvedValue({ value: '{}' })
-    vi.mocked(InAppPurchase.restorePurchases).mockResolvedValue([])
+    vi.mocked(Capacitor.isNativePlatform).mockReturnValue(true)
+    mockPurchases.restorePurchases.mockResolvedValue({
+      customerInfo: {
+        entitlements: {
+          active: {}
+        }
+      }
+    })
   })
 
   describe('saveProStatus', () => {
@@ -104,20 +125,29 @@ describe('Secure Storage', () => {
   })
 
   describe('initializeProStatus', () => {
-    it('should verify Pro status with IAP on initialization', async () => {
+    it('should verify Pro status with RevenueCat on initialization', async () => {
       // Mock existing status
       vi.mocked(SecureStoragePlugin.get).mockResolvedValue({
         value: JSON.stringify({ isPro: false })
       })
 
-      // Mock successful purchase restoration
-      vi.mocked(InAppPurchase.restorePurchases).mockResolvedValue([
-        { productId: 'cakecost_pro' }
-      ])
+      // Mock successful purchase restoration with active entitlement
+      mockPurchases.restorePurchases.mockResolvedValue({
+        customerInfo: {
+          entitlements: {
+            active: {
+              cakecost_pro: {
+                identifier: 'cakecost_pro',
+                isActive: true
+              }
+            }
+          }
+        }
+      })
 
       const result = await initializeProStatus()
 
-      expect(InAppPurchase.restorePurchases).toHaveBeenCalled()
+      expect(mockPurchases.restorePurchases).toHaveBeenCalled()
       expect(SecureStoragePlugin.set).toHaveBeenCalledWith({
         key: 'cakecost_pro_status',
         value: expect.stringContaining('"isPro":true')
@@ -131,8 +161,14 @@ describe('Secure Storage', () => {
         value: JSON.stringify({ isPro: true })
       })
 
-      // Mock no purchases
-      vi.mocked(InAppPurchase.restorePurchases).mockResolvedValue([])
+      // Mock no active entitlements
+      mockPurchases.restorePurchases.mockResolvedValue({
+        customerInfo: {
+          entitlements: {
+            active: {}
+          }
+        }
+      })
 
       const result = await initializeProStatus()
 
@@ -146,7 +182,13 @@ describe('Secure Storage', () => {
     it('should initialize with default values on first run', async () => {
       // Mock key not found (first run)
       vi.mocked(SecureStoragePlugin.get).mockRejectedValue(new Error('Key not found'))
-      vi.mocked(InAppPurchase.restorePurchases).mockResolvedValue([])
+      mockPurchases.restorePurchases.mockResolvedValue({
+        customerInfo: {
+          entitlements: {
+            active: {}
+          }
+        }
+      })
 
       const result = await initializeProStatus()
 
@@ -163,9 +205,18 @@ describe('Secure Storage', () => {
         })
       })
 
-      vi.mocked(InAppPurchase.restorePurchases).mockResolvedValue([
-        { productId: 'cakecost_pro' }
-      ])
+      mockPurchases.restorePurchases.mockResolvedValue({
+        customerInfo: {
+          entitlements: {
+            active: {
+              cakecost_pro: {
+                identifier: 'cakecost_pro',
+                isActive: true
+              }
+            }
+          }
+        }
+      })
 
       const result = await initializeProStatus()
 
@@ -177,17 +228,27 @@ describe('Secure Storage', () => {
       })
     })
 
-    it('should handle IAP errors gracefully', async () => {
+    it('should handle RevenueCat errors gracefully', async () => {
       vi.mocked(SecureStoragePlugin.get).mockResolvedValue({
         value: JSON.stringify({ isPro: false })
       })
 
-      vi.mocked(InAppPurchase.restorePurchases).mockRejectedValue(new Error('IAP error'))
+      mockPurchases.restorePurchases.mockRejectedValue(new Error('RevenueCat error'))
 
       const result = await initializeProStatus()
 
       // Should return current status without crashing
       expect(result.isPro).toBe(false)
+    })
+
+    it('should return default status on web platform', async () => {
+      vi.mocked(Capacitor.isNativePlatform).mockReturnValue(false)
+
+      const result = await initializeProStatus()
+
+      expect(result.isPro).toBe(false)
+      // Should not call RevenueCat on web
+      expect(mockPurchases.restorePurchases).not.toHaveBeenCalled()
     })
   })
 })
