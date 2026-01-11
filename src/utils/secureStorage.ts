@@ -1,6 +1,6 @@
 // src/utils/secureStorage.ts
 import { SecureStoragePlugin } from '@aparajita/capacitor-secure-storage'
-import { InAppPurchase } from 'capacitor-plugin-purchase'
+import { Capacitor } from '@capacitor/core'
 
 const PRO_STATUS_KEY = 'cakecost_pro_status'
 const PRO_PRODUCT_ID = 'cakecost_pro'
@@ -41,10 +41,15 @@ export async function getProStatus(): Promise<boolean> {
 }
 
 /**
- * Initialize Pro status by verifying with In-App Purchase
+ * Initialize Pro status by verifying with RevenueCat
  * This should be called on app startup
  */
 export async function initializeProStatus(): Promise<ProStatus> {
+  // Skip on web
+  if (!Capacitor.isNativePlatform()) {
+    return { isPro: false }
+  }
+
   try {
     // 1. Try to get existing status
     let currentStatus: ProStatus
@@ -58,18 +63,21 @@ export async function initializeProStatus(): Promise<ProStatus> {
       currentStatus = { isPro: false }
     }
 
-    // 2. Verify purchase with App Store / Play Store
+    // 2. Verify purchase with RevenueCat
     let hasPro = false
     try {
-      const purchases = await InAppPurchase.restorePurchases()
-      hasPro = purchases.some(p => p.productId === PRO_PRODUCT_ID)
+      const { Purchases } = await import('@revenuecat/purchases-capacitor')
+      const { customerInfo } = await Purchases.restorePurchases()
+
+      // Check if user has active Pro entitlement
+      hasPro = customerInfo.entitlements.active[PRO_PRODUCT_ID] !== undefined
     } catch (error) {
-      // IAP error - keep current status
+      // RevenueCat error - keep current status
       console.warn('Failed to restore purchases:', error)
       return currentStatus
     }
 
-    // 3. Update status based on IAP verification
+    // 3. Update status based on RevenueCat verification
     const newStatus: ProStatus = {
       isPro: hasPro,
       purchaseDate: hasPro ? (currentStatus.purchaseDate || new Date().toISOString()) : undefined,

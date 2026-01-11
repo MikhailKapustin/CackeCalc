@@ -3422,6 +3422,36 @@ if (!settingsStore.isPro) {
 - ✅ **Реклама отключается для Pro пользователей**
 - ✅ Все тесты безопасности и монетизации проходят
 
+**Фактическая реализация (завершено):**
+
+1. **Библиотеки:**
+   - `@aparajita/capacitor-secure-storage` - Secure Storage для iOS Keychain/Android KeyStore
+   - `capacitor-freerasp` - RASP защита (вместо @talsec/free-rasp-capacitor)
+   - `@capacitor-community/admob` - AdMob интеграция
+   - `@revenuecat/purchases-capacitor` - RevenueCat для IAP
+
+2. **Реализованные файлы:**
+   - `src/utils/secureStorage.ts` - Обновлен для использования RevenueCat
+   - `src/utils/rasp.ts` - Инициализация и threat listeners
+   - `src/utils/purchases.ts` - RevenueCat purchase операции
+   - `src/stores/ads.ts` - AdMob Pinia store с banner/interstitial логикой
+   - `src/stores/security.ts` - Security Pinia store для RASP
+   - `src/components/common/AdBanner.vue` - Banner компонент
+
+3. **Тестовое покрытие (42 тестов):**
+   - `src/__tests__/unit/utils/purchases.test.ts` - 13 тестов
+   - `src/__tests__/unit/utils/rasp.test.ts` - 8 тестов
+   - `src/__tests__/unit/stores/ads.test.ts` - 13 тестов
+   - `src/__tests__/components/common/AdBanner.test.ts` - 8 тестов
+   - Все моки созданы в `src/__tests__/__mocks__/`
+
+4. **Ключевые особенности:**
+   - Динамические импорты для избежания ошибок на web платформе
+   - 30-секундный cooldown между interstitial рекламой
+   - Test ad unit IDs используются по умолчанию
+   - RASP детектирует: root, tampering, malware, ADB, emulator, screenshots
+   - Pro статус хранится в Secure Storage (не в SQLite)
+
 ---
 
 ## Фаза 7: Кастомизация чека (Pro Feature)
