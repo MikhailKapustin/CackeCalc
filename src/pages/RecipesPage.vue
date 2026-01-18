@@ -3,11 +3,11 @@
     <div class="q-pa-md">
       <!-- Page Header -->
       <div class="row items-center justify-between q-mb-md">
-        <div class="text-h5">Рецепты</div>
+        <div class="text-h5">{{ $t('recipes.title') }}</div>
         <QBtn
           color="primary"
           icon="add"
-          label="Добавить рецепт"
+          :label="$t('recipes.add')"
           @click="showAddDialog = true"
         />
       </div>
@@ -24,7 +24,7 @@
         <QCard>
           <QToolbar class="bg-primary text-white">
             <QToolbarTitle>
-              {{ editingRecipe ? 'Редактировать рецепт' : 'Добавить рецепт' }}
+              {{ editingRecipe ? $t('recipes.edit') : $t('recipes.add') }}
             </QToolbarTitle>
             <QBtn flat round dense icon="close" v-close-popup />
           </QToolbar>
@@ -44,7 +44,7 @@
       <QDialog v-model="showCalculatorDialog">
         <QCard style="min-width: 400px; max-width: 600px;">
           <QCardSection>
-            <div class="text-h6">Калькулятор заказа</div>
+            <div class="text-h6">{{ $t('calculator.title') }}</div>
           </QCardSection>
 
           <QCardSection class="q-pt-none">
@@ -64,6 +64,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
+import { useI18n } from 'vue-i18n'
 import { Share } from '@capacitor/share'
 import { Filesystem, Directory } from '@capacitor/filesystem'
 import { Capacitor } from '@capacitor/core'
@@ -75,6 +76,7 @@ import OrderCalculator from '@/components/calculator/OrderCalculator.vue'
 import type { Recipe, RecipeInput } from '@/types/recipe'
 
 const $q = useQuasar()
+const { t } = useI18n()
 const recipesStore = useRecipesStore()
 const ingredientsStore = useIngredientsStore()
 
@@ -94,7 +96,7 @@ onMounted(async () => {
   } catch (error) {
     $q.notify({
       type: 'negative',
-      message: 'Ошибка загрузки данных'
+      message: t('common.error')
     })
   }
 })
@@ -111,7 +113,7 @@ async function handleDelete(id: number) {
   // Deletion is handled in RecipeList component
   $q.notify({
     type: 'positive',
-    message: 'Рецепт удален'
+    message: t('common.success')
   })
 }
 
@@ -122,14 +124,14 @@ async function handleSave(recipeData: RecipeInput) {
       await recipesStore.updateRecipe(editingRecipe.value.id, recipeData)
       $q.notify({
         type: 'positive',
-        message: 'Рецепт обновлен'
+        message: t('common.success')
       })
     } else {
       // Create new recipe
       await recipesStore.addRecipe(recipeData)
       $q.notify({
         type: 'positive',
-        message: 'Рецепт создан'
+        message: t('common.success')
       })
     }
 
@@ -139,7 +141,7 @@ async function handleSave(recipeData: RecipeInput) {
   } catch (error) {
     $q.notify({
       type: 'negative',
-      message: 'Ошибка сохранения рецепта'
+      message: t('common.error')
     })
   }
 }

@@ -18,7 +18,7 @@
         <QIcon name="workspace_premium" size="24px" color="orange" class="q-mr-sm" />
         {{ $t('settings.receiptCustomization.upgradeToPro') }}
       </div>
-      <div class="text-caption text-grey-7 q-mb-md">
+      <div class="text-caption q-mb-md">
         {{ $t('settings.receiptCustomization.proFeatures') }}
       </div>
       <QBtn
@@ -578,6 +578,12 @@ onMounted(async () => {
 .pro-banner {
   background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
   border: 2px dashed #ff9800;
+  color: #333333;
+}
+
+.pro-banner .text-body1,
+.pro-banner .text-caption {
+  color: #333333 !important;
 }
 
 .logo-preview {

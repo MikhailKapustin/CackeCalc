@@ -109,7 +109,19 @@
       "updateFailed": "Einstellungen konnten nicht aktualisiert werden",
       "proFeatureRequired": "Diese Funktion ist nur in der PRO-Version verfügbar",
       "upgradeInfo": "Upgraden Sie auf PRO, um auf erweiterte Beleg-Anpassungsfunktionen zuzugreifen"
-    }
+    },
+    "dataManagement": "Datenverwaltung",
+    "dataManagementHint": "Exportieren Sie Ihre Daten, um ein Backup zu erstellen, oder importieren Sie Daten von einem anderen Gerät",
+    "exportDataMessage": "Backup aller Ihrer Rezepte und Zutaten",
+    "shareBackup": "Backup teilen",
+    "exportSuccess": "Daten erfolgreich exportiert",
+    "exportError": "Fehler beim Exportieren der Daten",
+    "importSuccess": "Daten erfolgreich importiert",
+    "importError": "Fehler beim Importieren der Daten",
+    "importInvalidFile": "Ungültiges Dateiformat",
+    "upgradeRequired": "Upgrade erforderlich",
+    "importLimitExceeded": "Dieses Backup überschreitet die Grenzen der kostenlosen Version",
+    "upgradeToPro": "Auf PRO upgraden"
   },
   "currencies": {
     "ruble": "Russischer Rubel",

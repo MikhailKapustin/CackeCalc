@@ -109,7 +109,19 @@
       "updateFailed": "Error al actualizar la configuración",
       "proFeatureRequired": "Esta función solo está disponible en la versión PRO",
       "upgradeInfo": "Actualiza a PRO para acceder a las funciones avanzadas de personalización del recibo"
-    }
+    },
+    "dataManagement": "Gestión de Datos",
+    "dataManagementHint": "Exporta tus datos para crear una copia de seguridad o importa datos desde otro dispositivo",
+    "exportDataMessage": "Copia de seguridad de todas tus recetas e ingredientes",
+    "shareBackup": "Compartir Copia de Seguridad",
+    "exportSuccess": "Datos exportados exitosamente",
+    "exportError": "Error al exportar datos",
+    "importSuccess": "Datos importados exitosamente",
+    "importError": "Error al importar datos",
+    "importInvalidFile": "Formato de archivo inválido",
+    "upgradeRequired": "Actualización Requerida",
+    "importLimitExceeded": "Esta copia de seguridad excede los límites de la versión gratuita",
+    "upgradeToPro": "Actualizar a PRO"
   },
   "currencies": {
     "ruble": "Rublo ruso",

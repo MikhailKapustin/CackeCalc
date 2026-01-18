@@ -4,7 +4,7 @@
     <QInput
       v-model="store.searchQuery"
       data-test="search-input"
-      placeholder="Поиск рецептов..."
+      :placeholder="$t('recipes.search')"
       outlined
       dense
       clearable
@@ -21,7 +21,7 @@
       class="text-caption text-grey-7 q-mb-sm"
       data-test="results-count"
     >
-      {{ store.filteredRecipes.length }} рецепта найдено
+      {{ $t('recipes.resultsCount', { count: store.filteredRecipes.length }) }}
     </div>
 
     <!-- Empty state -->
@@ -31,7 +31,7 @@
       class="text-center q-pa-lg text-grey-6"
     >
       <QIcon name="cake" size="64px" class="q-mb-md" />
-      <div class="text-h6">Создайте первый рецепт</div>
+      <div class="text-h6">{{ $t('recipes.empty') }}</div>
       <div class="text-caption">Добавьте рецепты ваших кондитерских изделий</div>
     </div>
 
@@ -42,7 +42,7 @@
       class="text-center q-pa-lg text-grey-6"
     >
       <QIcon name="search_off" size="48px" class="q-mb-md" />
-      <div class="text-subtitle1">Ничего не найдено по запросу '{{ store.searchQuery }}'</div>
+      <div class="text-subtitle1">{{ $t('recipes.noResults', { query: store.searchQuery }) }}</div>
     </div>
 
     <!-- Recipes list -->
@@ -90,7 +90,7 @@
               data-test="edit-button"
               @click="$emit('edit', recipe.id)"
             >
-              <QTooltip>Редактировать</QTooltip>
+              <QTooltip>{{ $t('common.edit') }}</QTooltip>
             </QBtn>
             <QBtn
               flat
@@ -101,7 +101,7 @@
               data-test="delete-button"
               @click="confirmDelete(recipe)"
             >
-              <QTooltip>Удалить</QTooltip>
+              <QTooltip>{{ $t('common.delete') }}</QTooltip>
             </QBtn>
           </div>
         </QItemSection>
@@ -112,7 +112,7 @@
     <QDialog v-model="showDeleteDialog">
       <QCard>
         <QCardSection>
-          <div class="text-h6">Удалить рецепт?</div>
+          <div class="text-h6">{{ $t('recipes.delete') }}</div>
         </QCardSection>
 
         <QCardSection class="q-pt-none">
@@ -124,7 +124,7 @@
           <QBtn flat label="Отмена" color="primary" v-close-popup />
           <QBtn
             flat
-            label="Удалить"
+            :label="$t('common.delete')"
             color="negative"
             @click="handleDelete"
             v-close-popup
@@ -137,9 +137,12 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRecipesStore } from '@/stores/recipes'
 import { useSettingsStore } from '@/stores/settings'
 import type { Recipe, SellingUnit } from '@/types/recipe'
+
+const { t } = useI18n()
 
 interface Emits {
   (e: 'edit', id: number): void

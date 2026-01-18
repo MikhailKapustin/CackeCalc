@@ -109,7 +109,19 @@
       "updateFailed": "Failed to update settings",
       "proFeatureRequired": "This feature is only available in PRO version",
       "upgradeInfo": "Upgrade to PRO to access advanced receipt customization features"
-    }
+    },
+    "dataManagement": "Data Management",
+    "dataManagementHint": "Export your data to create a backup or import data from another device",
+    "exportDataMessage": "Backup of all your recipes and ingredients",
+    "shareBackup": "Share Backup",
+    "exportSuccess": "Data exported successfully",
+    "exportError": "Failed to export data",
+    "importSuccess": "Data imported successfully",
+    "importError": "Failed to import data",
+    "importInvalidFile": "Invalid file format",
+    "upgradeRequired": "Upgrade Required",
+    "importLimitExceeded": "This backup exceeds free version limits",
+    "upgradeToPro": "Upgrade to PRO"
   },
   "currencies": {
     "ruble": "Russian Ruble",

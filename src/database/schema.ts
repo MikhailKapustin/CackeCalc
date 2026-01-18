@@ -91,8 +91,9 @@ CREATE TABLE IF NOT EXISTS settings (
 
     updated_at INTEGER DEFAULT (strftime('%s', 'now'))
 );
+`
 
--- Initial data
+export const INSERT_DEFAULT_SETTINGS = `
 INSERT OR IGNORE INTO settings (id) VALUES (1);
 `
 
@@ -126,6 +127,7 @@ export async function runMigrations(db: SQLiteDBConnection): Promise<void> {
   await db.execute(CREATE_RECIPES_TABLE)
   await db.execute(CREATE_RECIPE_ITEMS_TABLE)
   await db.execute(CREATE_SETTINGS_TABLE)
+  await db.execute(INSERT_DEFAULT_SETTINGS)
 }
 
 /**

@@ -3,11 +3,11 @@
     <div class="q-pa-md">
       <!-- Page Header -->
       <div class="row items-center justify-between q-mb-md">
-        <div class="text-h5">Склад ингредиентов</div>
+        <div class="text-h5">{{ $t('ingredients.title') }}</div>
         <QBtn
           color="primary"
           icon="add"
-          label="Добавить"
+          :label="$t('ingredients.add')"
           @click="showAddDialog = true"
         />
       </div>
@@ -24,7 +24,7 @@
         <QCard style="min-width: 350px">
           <QCardSection>
             <div class="text-h6">
-              {{ editingIngredient ? 'Редактировать ингредиент' : 'Добавить ингредиент' }}
+              {{ editingIngredient ? $t('ingredients.edit') : $t('ingredients.add') }}
             </div>
           </QCardSection>
 
@@ -45,12 +45,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
+import { useI18n } from 'vue-i18n'
 import { useIngredientsStore } from '@/stores/ingredients'
 import IngredientList from '@/components/ingredients/IngredientList.vue'
 import IngredientForm from '@/components/ingredients/IngredientForm.vue'
 import type { Ingredient, IngredientInput } from '@/types/ingredient'
 
 const $q = useQuasar()
+const { t } = useI18n()
 const store = useIngredientsStore()
 
 const showAddDialog = ref(false)
@@ -64,7 +66,7 @@ onMounted(async () => {
   } catch (error) {
     $q.notify({
       type: 'negative',
-      message: 'Ошибка загрузки ингредиентов'
+      message: t('common.error')
     })
   }
 })
@@ -79,7 +81,7 @@ async function handleSave(data: IngredientInput) {
       ingredientId = editingIngredient.value.id
       $q.notify({
         type: 'positive',
-        message: 'Ингредиент обновлен'
+        message: t('common.success')
       })
     } else {
       // Add new ingredient
@@ -87,7 +89,7 @@ async function handleSave(data: IngredientInput) {
       ingredientId = newIngredient.id
       $q.notify({
         type: 'positive',
-        message: 'Ингредиент добавлен'
+        message: t('common.success')
       })
     }
 
@@ -103,7 +105,7 @@ async function handleSave(data: IngredientInput) {
     console.error('Error in handleSave:', error)
     $q.notify({
       type: 'negative',
-      message: 'Ошибка сохранения ингредиента'
+      message: t('common.error')
     })
   }
 }
@@ -120,7 +122,7 @@ async function handleDelete(id: number) {
   // Deletion is handled in IngredientList component
   $q.notify({
     type: 'positive',
-    message: 'Ингредиент удален'
+    message: t('common.success')
   })
 }
 

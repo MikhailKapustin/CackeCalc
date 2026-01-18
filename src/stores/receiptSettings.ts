@@ -10,7 +10,7 @@ import type {
   BusinessInfo,
   LogoPosition
 } from '@/types/receiptSettings'
-import { db } from '@/database/db'
+import { getDatabase } from '@/database/db'
 
 const DEFAULT_SETTINGS: ReceiptSettings = {
   logoPath: null,
@@ -88,6 +88,7 @@ export const useReceiptSettingsStore = defineStore('receiptSettings', () => {
   // Actions
   async function loadSettings(): Promise<void> {
     try {
+      const db = await getDatabase()
       const result = await db.query(
         'SELECT * FROM settings WHERE id = 1'
       )
@@ -121,6 +122,7 @@ export const useReceiptSettingsStore = defineStore('receiptSettings', () => {
 
   async function saveSettings(): Promise<ReceiptSettingsResult> {
     try {
+      const db = await getDatabase()
       await db.execute(
         `UPDATE settings SET
           receipt_logo_path = ?,

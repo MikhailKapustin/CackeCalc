@@ -4,7 +4,7 @@
     <QInput
       v-model="store.searchQuery"
       data-test="search-input"
-      placeholder="Поиск ингредиентов..."
+      :placeholder="$t('ingredients.search')"
       outlined
       dense
       clearable
@@ -21,7 +21,7 @@
       class="text-caption text-grey-7 q-mb-sm"
       data-test="results-count"
     >
-      {{ store.filteredIngredients.length }} ингредиента найдено
+      {{ $t('ingredients.resultsCount', { count: store.filteredIngredients.length }) }}
     </div>
 
     <!-- Empty state -->
@@ -31,8 +31,7 @@
       class="text-center q-pa-lg text-grey-6"
     >
       <QIcon name="inbox" size="64px" class="q-mb-md" />
-      <div class="text-h6">Добавьте первый ингредиент</div>
-      <div class="text-caption">Начните с добавления ингредиентов для ваших рецептов</div>
+      <div class="text-h6">{{ $t('ingredients.empty') }}</div>
     </div>
 
     <!-- No results state -->
@@ -42,7 +41,7 @@
       class="text-center q-pa-lg text-grey-6"
     >
       <QIcon name="search_off" size="48px" class="q-mb-md" />
-      <div class="text-subtitle1">Ничего не найдено по запросу '{{ store.searchQuery }}'</div>
+      <div class="text-subtitle1">{{ $t('ingredients.noResults', { query: store.searchQuery }) }}</div>
     </div>
 
     <!-- Ingredients list -->
@@ -74,7 +73,7 @@
               data-test="edit-button"
               @click="$emit('edit', ingredient.id)"
             >
-              <QTooltip>Редактировать</QTooltip>
+              <QTooltip>{{ $t('common.edit') }}</QTooltip>
             </QBtn>
             <QBtn
               flat
@@ -85,7 +84,7 @@
               data-test="delete-button"
               @click="confirmDelete(ingredient)"
             >
-              <QTooltip>Удалить</QTooltip>
+              <QTooltip>{{ $t('common.delete') }}</QTooltip>
             </QBtn>
           </div>
         </QItemSection>
@@ -96,19 +95,18 @@
     <QDialog v-model="showDeleteDialog">
       <QCard>
         <QCardSection>
-          <div class="text-h6">Удалить ингредиент?</div>
+          <div class="text-h6">{{ $t('ingredients.delete') }}</div>
         </QCardSection>
 
         <QCardSection class="q-pt-none">
-          Вы действительно хотите удалить "{{ ingredientToDelete?.name }}"?
-          Это действие нельзя отменить.
+          {{ $t('ingredients.deleteConfirm') }}
         </QCardSection>
 
         <QCardActions align="right">
-          <QBtn flat label="Отмена" color="primary" v-close-popup />
+          <QBtn flat :label="$t('common.cancel')" color="primary" v-close-popup />
           <QBtn
             flat
-            label="Удалить"
+            :label="$t('common.delete')"
             color="negative"
             @click="handleDelete"
             v-close-popup
@@ -121,9 +119,12 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useIngredientsStore } from '@/stores/ingredients'
 import { useSettingsStore } from '@/stores/settings'
 import type { Ingredient, PurchaseUnit, MeasurementType } from '@/types/ingredient'
+
+const { t } = useI18n()
 
 interface Props {
   highlightedId?: number | null
@@ -168,20 +169,20 @@ function formatPrice(price: number): string {
 
 function getUnitLabel(unit: PurchaseUnit): string {
   const labels: Record<PurchaseUnit, string> = {
-    kg: 'кг',
-    g: 'г',
-    l: 'л',
-    ml: 'мл',
-    pcs: 'шт',
-    tens: 'дес'
+    kg: t('units.kg'),
+    g: t('units.g'),
+    l: t('units.l'),
+    ml: t('units.ml'),
+    pcs: t('units.pcs'),
+    tens: t('units.tens')
   }
   return labels[unit] || unit
 }
 
 function getBaseUnitLabel(type: MeasurementType): string {
-  if (type === 'weight') return 'г'
-  if (type === 'volume') return 'мл'
-  return 'шт'
+  if (type === 'weight') return t('units.g')
+  if (type === 'volume') return t('units.ml')
+  return t('units.pcs')
 }
 
 // Highlight search term in name

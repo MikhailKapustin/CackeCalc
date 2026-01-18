@@ -1,7 +1,6 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import { initializeDatabase } from '@/database/schema'
-import type { SQLiteDBConnection } from '@capacitor-community/sqlite'
+import { getDatabase } from '@/database/db'
 
 /**
  * Supported theme modes
@@ -47,7 +46,6 @@ export const useSettingsStore = defineStore('settings', () => {
   const currency = ref<Currency>('₽')
   const language = ref<Language>('en')
   const isPro = ref(false) // Pro version status (loaded from Secure Storage, not DB)
-  const db = ref<SQLiteDBConnection | null>(null)
 
   // Getters (computed properties)
   const isDarkMode = computed(() => {
@@ -102,15 +100,8 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   // Database actions
-  async function initDB() {
-    if (!db.value) {
-      db.value = await initializeDatabase()
-    }
-    return db.value
-  }
-
   async function loadSettings() {
-    const database = await initDB()
+    const database = await getDatabase()
     const result = await database.query('SELECT * FROM settings WHERE id = 1')
 
     if (result.values && result.values.length > 0) {
@@ -132,7 +123,7 @@ export const useSettingsStore = defineStore('settings', () => {
   async function saveLanguage(newLanguage: Language) {
     setLanguage(newLanguage)
 
-    const database = await initDB()
+    const database = await getDatabase()
     await database.run(
       'UPDATE settings SET language = ?, updated_at = strftime("%s", "now") WHERE id = 1',
       [newLanguage]
@@ -142,7 +133,7 @@ export const useSettingsStore = defineStore('settings', () => {
   async function saveTheme(newTheme: ThemeMode) {
     setTheme(newTheme)
 
-    const database = await initDB()
+    const database = await getDatabase()
     await database.run(
       'UPDATE settings SET theme = ?, updated_at = strftime("%s", "now") WHERE id = 1',
       [newTheme]
@@ -152,7 +143,7 @@ export const useSettingsStore = defineStore('settings', () => {
   async function saveCurrency(newCurrency: Currency) {
     setCurrency(newCurrency)
 
-    const database = await initDB()
+    const database = await getDatabase()
     await database.run(
       'UPDATE settings SET currency_symbol = ?, updated_at = strftime("%s", "now") WHERE id = 1',
       [newCurrency]
