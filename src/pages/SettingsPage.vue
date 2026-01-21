@@ -123,6 +123,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuasar } from 'quasar'
 import { useSettingsStore, type Currency, type ThemeMode } from '@/stores/settings'
+import { useAdsStore } from '@/stores/ads'
 import { applyTheme } from '@/utils/theme'
 import { exportData, generateExportFilename } from '@/utils/exportData'
 import { importData } from '@/utils/importData'
@@ -133,6 +134,7 @@ import ReceiptCustomization from '@/components/settings/ReceiptCustomization.vue
 
 const { t } = useI18n()
 const settingsStore = useSettingsStore()
+const adsStore = useAdsStore()
 const $q = useQuasar()
 
 // Export/Import state
@@ -170,6 +172,9 @@ const changeTheme = async (newTheme: ThemeMode) => {
 const handleExport = async () => {
   try {
     exportLoading.value = true
+
+    // Show interstitial ad for Free users
+    await adsStore.showInterstitial('export_attempt')
 
     // Export data to JSON
     const data = await exportData()
@@ -225,6 +230,9 @@ const onFileSelected = async (event: Event) => {
 
   try {
     importLoading.value = true
+
+    // Show interstitial ad for Free users
+    await adsStore.showInterstitial('import_attempt')
 
     // Read file content
     const fileContent = await file.text()

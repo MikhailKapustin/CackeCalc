@@ -32,6 +32,9 @@
           </QTabPanel>
         </QTabPanels>
       </QPageContainer>
+
+      <!-- Ad Banner for Free users -->
+      <AdBanner />
     </QLayout>
   </div>
 </template>
@@ -41,6 +44,7 @@ import { ref } from 'vue'
 import IngredientsPage from '@/pages/IngredientsPage.vue'
 import RecipesPage from '@/pages/RecipesPage.vue'
 import SettingsPage from '@/pages/SettingsPage.vue'
+import AdBanner from '@/components/common/AdBanner.vue'
 
 const currentTab = ref('ingredients')
 </script>

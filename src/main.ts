@@ -5,6 +5,7 @@ import App from './App.vue'
 import { i18n, setI18nLanguage } from './boot/i18n'
 import { initializeTheme } from './boot/theme'
 import { useSettingsStore } from './stores/settings'
+import { useAdsStore } from './stores/ads'
 
 // Import icon libraries
 import '@quasar/extras/material-icons/material-icons.css'
@@ -28,6 +29,7 @@ app.mount('#app')
 // Initialize settings after app is mounted
 async function initializeSettings() {
   const settingsStore = useSettingsStore()
+  const adsStore = useAdsStore()
 
   try {
     await settingsStore.loadSettings()
@@ -35,6 +37,8 @@ async function initializeSettings() {
     setI18nLanguage(settingsStore.language as any)
     // Initialize theme system
     await initializeTheme()
+    // Initialize AdMob for Free users
+    await adsStore.initializeAds()
   } catch (error) {
     console.warn('Failed to load settings from database:', error)
     // Initialize theme with default

@@ -70,6 +70,7 @@ import { Filesystem, Directory } from '@capacitor/filesystem'
 import { Capacitor } from '@capacitor/core'
 import { useRecipesStore } from '@/stores/recipes'
 import { useIngredientsStore } from '@/stores/ingredients'
+import { useAdsStore } from '@/stores/ads'
 import RecipeList from '@/components/recipes/RecipeList.vue'
 import RecipeForm from '@/components/recipes/RecipeForm.vue'
 import OrderCalculator from '@/components/calculator/OrderCalculator.vue'
@@ -79,6 +80,7 @@ const $q = useQuasar()
 const { t } = useI18n()
 const recipesStore = useRecipesStore()
 const ingredientsStore = useIngredientsStore()
+const adsStore = useAdsStore()
 
 const showAddDialog = ref(false)
 const editingRecipe = ref<Recipe | undefined>(undefined)
@@ -138,6 +140,9 @@ async function handleSave(recipeData: RecipeInput) {
     // Close dialog and reset
     showAddDialog.value = false
     editingRecipe.value = undefined
+
+    // Show interstitial ad for Free users after saving recipe
+    await adsStore.showInterstitial('recipe_saved')
   } catch (error) {
     $q.notify({
       type: 'negative',
