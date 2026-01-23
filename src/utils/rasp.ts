@@ -109,7 +109,7 @@ export async function setupThreatListeners(securityStore: ReturnType<typeof useS
 export function getDefaultRASPConfig(): RASPConfig {
   return {
     androidConfig: {
-      packageName: 'com.cakecost.app',
+      packageName: 'com.gliderk.cakecalc',
       certificateHashes: ['YOUR_CERTIFICATE_HASH'], // TODO: Replace with actual hash
       supportedAlternativeStores: [
         'com.sec.android.app.samsungapps', // Samsung Galaxy Store
@@ -117,7 +117,7 @@ export function getDefaultRASPConfig(): RASPConfig {
       ]
     },
     iosConfig: {
-      appBundleIds: 'com.cakecost.app',
+      appBundleIds: 'com.gliderk.cakecalc',
       appTeamId: 'YOUR_APPLE_TEAM_ID' // TODO: Replace with actual team ID
     },
     watcherMail: 'security@cakecost.app'

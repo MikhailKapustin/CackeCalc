@@ -28,22 +28,54 @@ app.mount('#app')
 
 // Initialize settings after app is mounted
 async function initializeSettings() {
+  console.log('🚀 Starting app initialization...')
+
   const settingsStore = useSettingsStore()
   const adsStore = useAdsStore()
 
+  // Step 1: Load settings from database
   try {
+    console.log('📦 Loading settings from database...')
     await settingsStore.loadSettings()
+    console.log('✓ Settings loaded successfully')
+
     // Set language from database
-    setI18nLanguage(settingsStore.language as any)
-    // Initialize theme system
-    await initializeTheme()
-    // Initialize AdMob for Free users
-    await adsStore.initializeAds()
+    try {
+      setI18nLanguage(settingsStore.language as any)
+      console.log('✓ Language set:', settingsStore.language)
+    } catch (langError) {
+      console.warn('⚠️ Failed to set language, using default:', langError)
+    }
   } catch (error) {
-    console.warn('Failed to load settings from database:', error)
-    // Initialize theme with default
-    await initializeTheme()
+    console.error('❌ Failed to load settings from database:', error)
+    console.log('ℹ️ Using default settings')
   }
+
+  // Step 2: Initialize theme
+  try {
+    console.log('🎨 Initializing theme...')
+    await initializeTheme()
+    console.log('✓ Theme initialized')
+  } catch (themeError) {
+    console.error('❌ Failed to initialize theme:', themeError)
+    console.log('ℹ️ Continuing without theme')
+  }
+
+  // Step 3: Initialize AdMob
+  try {
+    console.log('📢 Initializing AdMob...')
+    await adsStore.initializeAds()
+    console.log('✓ AdMob initialized')
+  } catch (adsError) {
+    console.error('❌ Failed to initialize AdMob:', adsError)
+    console.log('ℹ️ Continuing without ads')
+  }
+
+  console.log('✅ App initialization complete')
 }
 
-initializeSettings()
+// Run initialization and catch any unhandled errors
+initializeSettings().catch(error => {
+  console.error('💥 Critical initialization error:', error)
+  console.log('⚠️ App will continue but some features may not work')
+})

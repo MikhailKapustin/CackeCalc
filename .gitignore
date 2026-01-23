@@ -43,6 +43,11 @@ coverage
 .env.local
 .env.*.local
 
+# Android signing
+key.properties
+*.jks
+*.keystore
+
 # Testing
 /test-results/
 /playwright-report/

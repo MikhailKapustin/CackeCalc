@@ -60,7 +60,8 @@ export const useAdsStore = defineStore('ads', () => {
       console.log('AdMob: Initialized successfully')
     } catch (error) {
       console.error('AdMob: Initialization failed:', error)
-      throw error
+      // Don't throw error - allow app to continue without ads
+      console.warn('AdMob: App will continue without ads')
     }
   }
 
