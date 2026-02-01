@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS settings (
     id INTEGER PRIMARY KEY CHECK (id = 1), -- Always one row
 
     -- Main settings
-    currency_symbol TEXT DEFAULT '₽',
+    currency_symbol TEXT DEFAULT '$',
     language TEXT,  -- NULL = not set (first run, use browser locale)
     theme TEXT DEFAULT 'light',              -- 'light', 'dark', 'auto'
 

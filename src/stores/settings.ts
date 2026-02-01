@@ -43,7 +43,7 @@ const VALID_LANGUAGES: Language[] = ['en', 'ru', 'es', 'de', 'fr', 'zh', 'kk']
 export const useSettingsStore = defineStore('settings', () => {
   // State
   const theme = ref<ThemeMode>('light')
-  const currency = ref<Currency>('₽')
+  const currency = ref<Currency>('$')
   const language = ref<Language>('en')
   const isPro = ref(false) // Pro version status (loaded from Secure Storage, not DB)
 
