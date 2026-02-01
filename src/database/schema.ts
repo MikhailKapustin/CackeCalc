@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS settings (
 
     -- Main settings
     currency_symbol TEXT DEFAULT '₽',
-    language TEXT DEFAULT 'en',
+    language TEXT,  -- NULL = not set (first run, use browser locale)
     theme TEXT DEFAULT 'light',              -- 'light', 'dark', 'auto'
 
     -- Receipt branding settings (Pro version)

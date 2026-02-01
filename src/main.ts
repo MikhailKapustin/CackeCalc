@@ -62,13 +62,24 @@ async function initializeSettings() {
   // Step 3: Load settings from database
   try {
     console.log('📦 Loading settings from database...')
-    await settingsStore.loadSettings()
+    const languageWasSet = await settingsStore.loadSettings()
     console.log('✓ Settings loaded successfully')
 
-    // Set language from database
+    // Set language
     try {
-      setI18nLanguage(settingsStore.language as any)
-      console.log('✓ Language set:', settingsStore.language)
+      if (!languageWasSet) {
+        // First run: language is NULL in database
+        // Detect and save browser locale
+        const browserLocale = i18n.global.locale.value
+        console.log('✨ First run: Browser locale detected:', browserLocale)
+        await settingsStore.saveLanguage(browserLocale as any)
+        setI18nLanguage(browserLocale as any)
+        console.log('✓ Language set from browser:', browserLocale)
+      } else {
+        // Use saved language from database
+        setI18nLanguage(settingsStore.language as any)
+        console.log('✓ Language set from database:', settingsStore.language)
+      }
     } catch (langError) {
       console.warn('⚠️ Failed to set language, using default:', langError)
     }

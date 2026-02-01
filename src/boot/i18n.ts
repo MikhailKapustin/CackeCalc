@@ -81,9 +81,29 @@ export default boot(async ({ app }) => {
   const settingsStore = useSettingsStore()
 
   try {
-    await settingsStore.loadSettings()
-    // Set language from database
-    setI18nLanguage(settingsStore.language as SupportedLocale)
+    // Get browser locale before loading settings
+    const browserLocale = i18n.global.locale.value
+    console.log(`🌐 Browser locale detected: ${browserLocale}`)
+    console.log(`🌐 Navigator.language: ${navigator.language}`)
+    console.log(`🌐 Navigator.languages: ${JSON.stringify(navigator.languages)}`)
+
+    // Load settings from database
+    const settingsFound = await settingsStore.loadSettings()
+    console.log(`🔍 Settings found in DB (language was set): ${settingsFound}`)
+    console.log(`🔍 Current settingsStore.language: ${settingsStore.language}`)
+
+    if (!settingsFound) {
+      // First run: no settings in database
+      // Use browser locale and save it to database for future runs
+      console.log(`✨ First run detected. Setting language to browser locale: ${browserLocale}`)
+      await settingsStore.saveLanguage(browserLocale as SupportedLocale)
+      setI18nLanguage(browserLocale as SupportedLocale)
+    } else {
+      // Settings found in database - use saved language
+      console.log(`📚 Using saved language from database: ${settingsStore.language}`)
+      setI18nLanguage(settingsStore.language as SupportedLocale)
+    }
+
     // Initialize theme system
     await initializeTheme()
   } catch (error) {

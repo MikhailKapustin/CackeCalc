@@ -100,16 +100,29 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   // Database actions
-  async function loadSettings() {
+  /**
+   * Load settings from database
+   * @returns true if language was set (not first run), false if language is NULL (first run)
+   */
+  async function loadSettings(): Promise<boolean> {
     const database = await getDatabase()
     const result = await database.query('SELECT * FROM settings WHERE id = 1')
 
+    console.log('🔍 loadSettings: query result:', JSON.stringify(result))
+
     if (result.values && result.values.length > 0) {
       const settings = result.values[0]
+      console.log('🔍 loadSettings: settings row:', JSON.stringify(settings))
+      console.log('🔍 loadSettings: settings.language value:', settings.language)
+      let languageWasSet = false
 
       // Update state from database
       if (settings.language && VALID_LANGUAGES.includes(settings.language)) {
+        console.log('✅ loadSettings: Language found in DB:', settings.language)
         language.value = settings.language as Language
+        languageWasSet = true
+      } else {
+        console.log('⚠️ loadSettings: Language is NULL or invalid in DB')
       }
       if (settings.currency_symbol && VALID_CURRENCIES.includes(settings.currency_symbol)) {
         currency.value = settings.currency_symbol as Currency
@@ -117,7 +130,13 @@ export const useSettingsStore = defineStore('settings', () => {
       if (settings.theme && VALID_THEMES.includes(settings.theme)) {
         theme.value = settings.theme as ThemeMode
       }
+
+      console.log('🔍 loadSettings: returning languageWasSet =', languageWasSet)
+      return languageWasSet // true if language was set, false if NULL (first run)
     }
+
+    console.log('⚠️ loadSettings: No settings row found in database')
+    return false // No settings in database (should not happen with INSERT_DEFAULT_SETTINGS)
   }
 
   async function saveLanguage(newLanguage: Language) {
