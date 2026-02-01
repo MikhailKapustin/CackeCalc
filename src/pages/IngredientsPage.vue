@@ -47,6 +47,7 @@ import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useI18n } from 'vue-i18n'
 import { useIngredientsStore } from '@/stores/ingredients'
+import { useAdsStore } from '@/stores/ads'
 import IngredientList from '@/components/ingredients/IngredientList.vue'
 import IngredientForm from '@/components/ingredients/IngredientForm.vue'
 import type { Ingredient, IngredientInput } from '@/types/ingredient'
@@ -54,6 +55,7 @@ import type { Ingredient, IngredientInput } from '@/types/ingredient'
 const $q = useQuasar()
 const { t } = useI18n()
 const store = useIngredientsStore()
+const adsStore = useAdsStore()
 
 const showAddDialog = ref(false)
 const editingIngredient = ref<Ingredient | undefined>(undefined)
@@ -63,6 +65,13 @@ const highlightedIngredientId = ref<number | null>(null)
 onMounted(async () => {
   try {
     await store.loadIngredients()
+
+    // Show banner ad for Free users
+    try {
+      await adsStore.showBanner()
+    } catch (adError) {
+      console.warn('Failed to show banner ad:', adError)
+    }
   } catch (error) {
     $q.notify({
       type: 'negative',

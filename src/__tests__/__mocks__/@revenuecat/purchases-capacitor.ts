@@ -10,7 +10,7 @@ export const Purchases = {
         availablePackages: [
           {
             product: {
-              identifier: 'cakecost_pro',
+              identifier: 'cakecalc_pro',
               title: 'CakeCost Pro',
               description: 'Unlock all features',
               price: '$4.99',
@@ -26,11 +26,11 @@ export const Purchases = {
     customerInfo: {
       entitlements: {
         active: {
-          cakecost_pro: {
-            identifier: 'cakecost_pro',
+          cakecalc_pro: {
+            identifier: 'cakecalc_pro',
             isActive: true,
             willRenew: false,
-            productIdentifier: 'cakecost_pro'
+            productIdentifier: 'cakecalc_pro'
           }
         }
       }

@@ -41,14 +41,14 @@ describe('Secure Storage', () => {
       const status = {
         isPro: true,
         purchaseDate: '2025-01-15T10:00:00Z',
-        productId: 'cakecost_pro',
+        productId: 'cakecalc_pro',
         lastVerified: '2025-01-15T10:00:00Z'
       }
 
       await saveProStatus(status)
 
       expect(SecureStoragePlugin.set).toHaveBeenCalledWith({
-        key: 'cakecost_pro_status',
+        key: 'cakecalc_pro_status',
         value: JSON.stringify(status)
       })
     })
@@ -61,7 +61,7 @@ describe('Secure Storage', () => {
       await saveProStatus(status)
 
       expect(SecureStoragePlugin.set).toHaveBeenCalledWith({
-        key: 'cakecost_pro_status',
+        key: 'cakecalc_pro_status',
         value: JSON.stringify(status)
       })
     })
@@ -80,7 +80,7 @@ describe('Secure Storage', () => {
       const mockStatus = {
         isPro: true,
         purchaseDate: '2025-01-15T10:00:00Z',
-        productId: 'cakecost_pro'
+        productId: 'cakecalc_pro'
       }
 
       vi.mocked(SecureStoragePlugin.get).mockResolvedValue({
@@ -90,7 +90,7 @@ describe('Secure Storage', () => {
       const isPro = await getProStatus()
 
       expect(SecureStoragePlugin.get).toHaveBeenCalledWith({
-        key: 'cakecost_pro_status'
+        key: 'cakecalc_pro_status'
       })
       expect(isPro).toBe(true)
     })
@@ -136,8 +136,8 @@ describe('Secure Storage', () => {
         customerInfo: {
           entitlements: {
             active: {
-              cakecost_pro: {
-                identifier: 'cakecost_pro',
+              cakecalc_pro: {
+                identifier: 'cakecalc_pro',
                 isActive: true
               }
             }
@@ -149,7 +149,7 @@ describe('Secure Storage', () => {
 
       expect(mockPurchases.restorePurchases).toHaveBeenCalled()
       expect(SecureStoragePlugin.set).toHaveBeenCalledWith({
-        key: 'cakecost_pro_status',
+        key: 'cakecalc_pro_status',
         value: expect.stringContaining('"isPro":true')
       })
       expect(result.isPro).toBe(true)
@@ -173,7 +173,7 @@ describe('Secure Storage', () => {
       const result = await initializeProStatus()
 
       expect(SecureStoragePlugin.set).toHaveBeenCalledWith({
-        key: 'cakecost_pro_status',
+        key: 'cakecalc_pro_status',
         value: expect.stringContaining('"isPro":false')
       })
       expect(result.isPro).toBe(false)
@@ -201,7 +201,7 @@ describe('Secure Storage', () => {
         value: JSON.stringify({
           isPro: true,
           purchaseDate: '2025-01-15T10:00:00Z',
-          productId: 'cakecost_pro'
+          productId: 'cakecalc_pro'
         })
       })
 
@@ -209,8 +209,8 @@ describe('Secure Storage', () => {
         customerInfo: {
           entitlements: {
             active: {
-              cakecost_pro: {
-                identifier: 'cakecost_pro',
+              cakecalc_pro: {
+                identifier: 'cakecalc_pro',
                 isActive: true
               }
             }
@@ -223,7 +223,7 @@ describe('Secure Storage', () => {
       expect(result.isPro).toBe(true)
       // Should update lastVerified
       expect(SecureStoragePlugin.set).toHaveBeenCalledWith({
-        key: 'cakecost_pro_status',
+        key: 'cakecalc_pro_status',
         value: expect.stringContaining('lastVerified')
       })
     })

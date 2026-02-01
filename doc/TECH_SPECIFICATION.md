@@ -634,14 +634,14 @@ INSERT OR IGNORE INTO settings (id) VALUES (1);
 // Проверка покупки через In-App Purchase плагин и Secure Storage
 async function restorePurchases() {
   const purchases = await InAppPurchase.restorePurchases();
-  const hasPro = purchases.some(p => p.productId === 'cakecost_pro');
+  const hasPro = purchases.some(p => p.productId === 'cakecalc_pro');
 
   if (hasPro) {
     // Сохранить флаг в Secure Storage (НЕ в SQLite!)
     await saveProStatus({
       isPro: true,
       purchaseDate: new Date().toISOString(),
-      productId: 'cakecost_pro',
+      productId: 'cakecalc_pro',
       lastVerified: new Date().toISOString()
     });
   }
@@ -1038,7 +1038,7 @@ export const useRecipesStore = defineStore('recipes', {
 **Структура данных:**
 ```typescript
 // Ключ для хранения
-const PRO_STATUS_KEY = 'cakecost_pro_status';
+const PRO_STATUS_KEY = 'cakecalc_pro_status';
 
 // Интерфейс данных Pro статуса
 interface ProStatus {
@@ -1065,14 +1065,14 @@ async function initializeProStatus() {
 
     // 2. Верифицировать покупку через магазин приложений
     const purchases = await InAppPurchase.restorePurchases();
-    const hasPro = purchases.some(p => p.productId === 'cakecost_pro');
+    const hasPro = purchases.some(p => p.productId === 'cakecalc_pro');
 
     // 3. Если статусы не совпадают - приоритет магазину
     if (hasPro && !proStatus.isPro) {
       await saveProStatus({
         isPro: true,
         purchaseDate: new Date().toISOString(),
-        productId: 'cakecost_pro',
+        productId: 'cakecalc_pro',
         lastVerified: new Date().toISOString()
       });
     } else if (!hasPro && proStatus.isPro) {
@@ -1139,9 +1139,9 @@ export const useSettingsStore = defineStore('settings', {
 
     async purchasePro() {
       // Инициировать покупку через In-App Purchase
-      const result = await InAppPurchase.purchase('cakecost_pro');
+      const result = await InAppPurchase.purchase('cakecalc_pro');
       if (result.success) {
-        await handlePurchaseSuccess('cakecost_pro');
+        await handlePurchaseSuccess('cakecalc_pro');
         this.isPro = true;
       }
     },
@@ -2673,7 +2673,7 @@ interface Settings {
 interface ProStatus {
   isPro: boolean;
   purchaseDate?: string;        // ISO дата покупки
-  productId?: string;           // ID продукта из магазина (cakecost_pro)
+  productId?: string;           // ID продукта из магазина (cakecalc_pro)
   lastVerified?: string;        // Дата последней проверки через IAP
 }
 

@@ -23,6 +23,12 @@ export const useAdsStore = defineStore('ads', () => {
   const BANNER_AD_UNIT_ID = import.meta.env.VITE_ADMOB_BANNER_ID || 'ca-app-pub-3940256099942544/6300978111' // Test ID
   const INTERSTITIAL_AD_UNIT_ID = import.meta.env.VITE_ADMOB_INTERSTITIAL_ID || 'ca-app-pub-3940256099942544/1033173712' // Test ID
 
+  // Log ad unit IDs on store creation for debugging
+  console.log('🔔 AdMob Store: Banner ID from env:', import.meta.env.VITE_ADMOB_BANNER_ID)
+  console.log('🔔 AdMob Store: Final Banner ID:', BANNER_AD_UNIT_ID)
+  console.log('🔔 AdMob Store: Interstitial ID from env:', import.meta.env.VITE_ADMOB_INTERSTITIAL_ID)
+  console.log('🔔 AdMob Store: Final Interstitial ID:', INTERSTITIAL_AD_UNIT_ID)
+
   // Getters
   const shouldShowAds = computed(() => {
     const settingsStore = useSettingsStore()
@@ -36,11 +42,17 @@ export const useAdsStore = defineStore('ads', () => {
 
   // Actions
   async function initializeAds() {
+    console.log('🔔 AdMob: initializeAds() called')
+
     // Only initialize on native platforms
     if (!Capacitor.isNativePlatform()) {
       console.log('AdMob: Skipping initialization on web platform')
       return
     }
+
+    const settingsStore = useSettingsStore()
+    console.log('🔔 AdMob: isPro status:', settingsStore.isPro)
+    console.log('🔔 AdMob: shouldShowAds:', shouldShowAds.value)
 
     if (!shouldShowAds.value) {
       console.log('AdMob: Ads disabled for Pro users')
@@ -48,30 +60,69 @@ export const useAdsStore = defineStore('ads', () => {
     }
 
     try {
+      console.log('🔔 AdMob: Importing AdMob module...')
       const { AdMob } = await import('@capacitor-community/admob')
 
+      console.log('🔔 AdMob: Calling initialize...')
       await AdMob.initialize({
         requestTrackingAuthorization: true,
-        testingDevices: import.meta.env.DEV ? ['YOUR_TEST_DEVICE_ID'] : [],
-        initializeForTesting: import.meta.env.DEV
+        testingDevices: [], // Empty array for production
+        initializeForTesting: false // Set to false for production
       })
 
       isInitialized.value = true
-      console.log('AdMob: Initialized successfully')
+      console.log('✅ AdMob: Initialized successfully')
     } catch (error) {
-      console.error('AdMob: Initialization failed:', error)
+      console.error('❌ AdMob: Initialization failed:', error)
       // Don't throw error - allow app to continue without ads
-      console.warn('AdMob: App will continue without ads')
+      console.warn('⚠️ AdMob: App will continue without ads')
     }
   }
 
   async function showBanner() {
-    if (!Capacitor.isNativePlatform() || !shouldShowAds.value || !isInitialized.value) {
+    console.log('🔔 AdMob: showBanner() called')
+    console.log('🔔 AdMob: isNativePlatform:', Capacitor.isNativePlatform())
+    console.log('🔔 AdMob: shouldShowAds:', shouldShowAds.value)
+    console.log('🔔 AdMob: isInitialized:', isInitialized.value)
+
+    if (!Capacitor.isNativePlatform()) {
+      console.log('⚠️ AdMob: Not a native platform, skipping banner')
+      return
+    }
+
+    if (!shouldShowAds.value) {
+      console.log('⚠️ AdMob: Should not show ads (Pro user or setting disabled)')
+      return
+    }
+
+    if (!isInitialized.value) {
+      console.log('⚠️ AdMob: Not initialized, skipping banner')
       return
     }
 
     try {
-      const { AdMob, BannerAdOptions, BannerAdSize, BannerAdPosition } = await import('@capacitor-community/admob')
+      console.log('🔔 AdMob: Importing AdMob module for banner...')
+      const { AdMob, BannerAdOptions, BannerAdSize, BannerAdPosition, BannerAdPluginEvents } = await import('@capacitor-community/admob')
+
+      // Add event listeners for debugging
+      AdMob.addListener(BannerAdPluginEvents.Loaded, () => {
+        console.log('✅ AdMob: Banner ad loaded')
+        isBannerVisible.value = true
+        impressionsCount.value++
+      })
+
+      AdMob.addListener(BannerAdPluginEvents.FailedToLoad, (error) => {
+        console.error('❌ AdMob: Banner failed to load:', error)
+        failedLoadsCount.value++
+      })
+
+      AdMob.addListener(BannerAdPluginEvents.Opened, () => {
+        console.log('📱 AdMob: Banner ad opened')
+      })
+
+      AdMob.addListener(BannerAdPluginEvents.Closed, () => {
+        console.log('📱 AdMob: Banner ad closed')
+      })
 
       const options: BannerAdOptions = {
         adId: BANNER_AD_UNIT_ID,
@@ -80,15 +131,15 @@ export const useAdsStore = defineStore('ads', () => {
         margin: 0
       }
 
+      console.log('🔔 AdMob: Showing banner with options:', options)
+      console.log('🔔 AdMob: Ad Unit ID:', BANNER_AD_UNIT_ID)
       await AdMob.showBanner(options)
-      isBannerVisible.value = true
-      impressionsCount.value++
 
-      console.log('AdMob: Banner ad shown')
+      console.log('✅ AdMob: Banner ad show command sent')
     } catch (error) {
-      console.error('AdMob: Failed to show banner:', error)
+      console.error('❌ AdMob: Failed to show banner:', error)
+      console.error('❌ AdMob: Error details:', JSON.stringify(error))
       failedLoadsCount.value++
-      throw error
     }
   }
 

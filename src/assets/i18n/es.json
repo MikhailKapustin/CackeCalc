@@ -108,7 +108,15 @@
       "uploadFailed": "Error al subir el logo",
       "updateFailed": "Error al actualizar la configuración",
       "proFeatureRequired": "Esta función solo está disponible en la versión PRO",
-      "upgradeInfo": "Actualiza a PRO para acceder a las funciones avanzadas de personalización del recibo"
+      "upgradeInfo": "Actualiza a PRO para acceder a las funciones avanzadas de personalización del recibo",
+      "processing": "Procesando Compra",
+      "pleaseWait": "Por favor espera mientras procesamos tu compra...",
+      "upgradeSuccess": "¡Actualizado a PRO exitosamente! ¡Gracias por tu apoyo!",
+      "upgradeCancelled": "Compra cancelada",
+      "upgradeError": "Error al procesar la compra. Por favor intenta de nuevo.",
+      "noPackagesAvailable": "No hay paquetes de compra disponibles. Por favor intenta más tarde.",
+      "webNotSupported": "Las compras no están disponibles en la versión web. Por favor usa la aplicación móvil.",
+      "notConfigured": "El sistema de compras no está configurado. Contacte al desarrollador para configurar RevenueCat."
     },
     "dataManagement": "Gestión de Datos",
     "dataManagementHint": "Exporta tus datos para crear una copia de seguridad o importa datos desde otro dispositivo",

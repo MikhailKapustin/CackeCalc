@@ -1,7 +1,7 @@
 <template>
   <div class="language-switcher">
     <QSelect
-      v-model="settingsStore.language"
+      v-model="currentLanguage"
       :options="languageOptions"
       :label="$t('settings.language')"
       outlined
@@ -17,10 +17,21 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { setI18nLanguage, type SupportedLocale } from '@/boot/i18n'
 import { useSettingsStore } from '@/stores/settings'
+import { useI18n } from 'vue-i18n'
 
 const settingsStore = useSettingsStore()
+const { locale } = useI18n()
+
+// Use computed to sync with i18n locale
+const currentLanguage = computed({
+  get: () => locale.value as SupportedLocale,
+  set: (value: SupportedLocale) => {
+    // Handled by changeLanguage method
+  }
+})
 
 const languageOptions = [
   { label: 'English', value: 'en' },

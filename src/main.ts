@@ -1,5 +1,5 @@
 import { createApp } from 'vue'
-import { Quasar, Notify } from 'quasar'
+import { Quasar, Notify, Dialog } from 'quasar'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import { i18n, setI18nLanguage } from './boot/i18n'
@@ -17,7 +17,8 @@ const app = createApp(App)
 
 app.use(Quasar, {
   plugins: {
-    Notify
+    Notify,
+    Dialog
   }
 })
 
@@ -33,7 +34,32 @@ async function initializeSettings() {
   const settingsStore = useSettingsStore()
   const adsStore = useAdsStore()
 
-  // Step 1: Load settings from database
+  // Step 1: Initialize RevenueCat FIRST (before checking Pro status)
+  try {
+    console.log('💳 Initializing RevenueCat...')
+    const { initializeRevenueCat } = await import('@/utils/purchases')
+    await initializeRevenueCat()
+    console.log('✅ RevenueCat initialized')
+  } catch (rcError) {
+    console.error('❌ Failed to initialize RevenueCat:', rcError)
+    console.log('ℹ️ Continuing without purchases')
+  }
+
+  // Step 2: Load Pro status from Secure Storage (after RevenueCat is initialized)
+  try {
+    console.log('🔐 Loading Pro status from Secure Storage...')
+    const { initializeProStatus } = await import('@/utils/secureStorage')
+    const proStatus = await initializeProStatus()
+    settingsStore.isPro = proStatus.isPro
+    console.log('✅ Pro status loaded:', proStatus.isPro)
+    console.log('🔔 Full Pro Status:', JSON.stringify(proStatus))
+  } catch (proError) {
+    console.warn('⚠️ Failed to load Pro status, defaulting to free:', proError)
+    settingsStore.isPro = false
+    console.log('🔔 Pro status after error:', settingsStore.isPro)
+  }
+
+  // Step 3: Load settings from database
   try {
     console.log('📦 Loading settings from database...')
     await settingsStore.loadSettings()
@@ -51,7 +77,7 @@ async function initializeSettings() {
     console.log('ℹ️ Using default settings')
   }
 
-  // Step 2: Initialize theme
+  // Step 4: Initialize theme
   try {
     console.log('🎨 Initializing theme...')
     await initializeTheme()
@@ -61,7 +87,7 @@ async function initializeSettings() {
     console.log('ℹ️ Continuing without theme')
   }
 
-  // Step 3: Initialize AdMob
+  // Step 5: Initialize AdMob (after Pro status is loaded)
   try {
     console.log('📢 Initializing AdMob...')
     await adsStore.initializeAds()

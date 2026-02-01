@@ -108,7 +108,15 @@
       "uploadFailed": "Logo-Upload fehlgeschlagen",
       "updateFailed": "Einstellungen konnten nicht aktualisiert werden",
       "proFeatureRequired": "Diese Funktion ist nur in der PRO-Version verfügbar",
-      "upgradeInfo": "Upgraden Sie auf PRO, um auf erweiterte Beleg-Anpassungsfunktionen zuzugreifen"
+      "upgradeInfo": "Upgraden Sie auf PRO, um auf erweiterte Beleg-Anpassungsfunktionen zuzugreifen",
+      "processing": "Kauf wird verarbeitet",
+      "pleaseWait": "Bitte warten Sie, während wir Ihren Kauf verarbeiten...",
+      "upgradeSuccess": "Erfolgreich auf PRO aktualisiert! Vielen Dank für Ihre Unterstützung!",
+      "upgradeCancelled": "Kauf abgebrochen",
+      "upgradeError": "Fehler beim Verarbeiten des Kaufs. Bitte versuchen Sie es erneut.",
+      "noPackagesAvailable": "Keine Kaufpakete verfügbar. Bitte versuchen Sie es später erneut.",
+      "webNotSupported": "Käufe sind in der Web-Version nicht verfügbar. Bitte verwenden Sie die mobile App.",
+      "notConfigured": "Das Kaufsystem ist nicht konfiguriert. Bitte kontaktieren Sie den Entwickler, um RevenueCat einzurichten."
     },
     "dataManagement": "Datenverwaltung",
     "dataManagementHint": "Exportieren Sie Ihre Daten, um ein Backup zu erstellen, oder importieren Sie Daten von einem anderen Gerät",

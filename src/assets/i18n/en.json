@@ -108,7 +108,15 @@
       "uploadFailed": "Failed to upload logo",
       "updateFailed": "Failed to update settings",
       "proFeatureRequired": "This feature is only available in PRO version",
-      "upgradeInfo": "Upgrade to PRO to access advanced receipt customization features"
+      "upgradeInfo": "Upgrade to PRO to access advanced receipt customization features",
+      "processing": "Processing Purchase",
+      "pleaseWait": "Please wait while we process your purchase...",
+      "upgradeSuccess": "Successfully upgraded to PRO! Thank you for your support!",
+      "upgradeCancelled": "Purchase cancelled",
+      "upgradeError": "Failed to process purchase. Please try again.",
+      "noPackagesAvailable": "No purchase packages available. Please try again later.",
+      "webNotSupported": "Purchases are not available in web version. Please use mobile app.",
+      "notConfigured": "Purchase system is not configured. Please contact the developer to set up RevenueCat."
     },
     "dataManagement": "Data Management",
     "dataManagementHint": "Export your data to create a backup or import data from another device",

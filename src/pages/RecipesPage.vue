@@ -95,6 +95,13 @@ onMounted(async () => {
     await ingredientsStore.loadIngredients()
     // Then load recipes
     await recipesStore.loadRecipes()
+
+    // Show banner ad for Free users
+    try {
+      await adsStore.showBanner()
+    } catch (adError) {
+      console.warn('Failed to show banner ad:', adError)
+    }
   } catch (error) {
     $q.notify({
       type: 'negative',

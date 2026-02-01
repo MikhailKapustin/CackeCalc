@@ -21,7 +21,7 @@ vi.mock('@revenuecat/purchases-capacitor', () => ({
           availablePackages: [
             {
               product: {
-                identifier: 'cakecost_pro',
+                identifier: 'cakecalc_pro',
                 title: 'CakeCost Pro',
                 description: 'Unlock all features',
                 price: '$4.99',
@@ -36,11 +36,11 @@ vi.mock('@revenuecat/purchases-capacitor', () => ({
       customerInfo: {
         entitlements: {
           active: {
-            cakecost_pro: {
-              identifier: 'cakecost_pro',
+            cakecalc_pro: {
+              identifier: 'cakecalc_pro',
               isActive: true,
               willRenew: false,
-              productIdentifier: 'cakecost_pro'
+              productIdentifier: 'cakecalc_pro'
             }
           }
         }
@@ -151,7 +151,7 @@ describe('Purchases Utils', () => {
 
       await purchasePro()
 
-      expect(handlePurchaseSuccess).toHaveBeenCalledWith('cakecost_pro')
+      expect(handlePurchaseSuccess).toHaveBeenCalledWith('cakecalc_pro')
     })
   })
 
@@ -162,8 +162,8 @@ describe('Purchases Utils', () => {
         customerInfo: {
           entitlements: {
             active: {
-              cakecost_pro: {
-                identifier: 'cakecost_pro',
+              cakecalc_pro: {
+                identifier: 'cakecalc_pro',
                 isActive: true
               }
             }
@@ -205,8 +205,8 @@ describe('Purchases Utils', () => {
       const mockInfo = {
         entitlements: {
           active: {
-            cakecost_pro: {
-              identifier: 'cakecost_pro'
+            cakecalc_pro: {
+              identifier: 'cakecalc_pro'
             }
           }
         }

@@ -533,13 +533,84 @@ async function handleReset() {
   })
 }
 
-function handleUpgrade() {
-  // TODO: Navigate to purchases page or show upgrade dialog
-  $q.notify({
-    type: 'info',
-    message: t('settings.receiptCustomization.upgradeInfo'),
-    icon: 'info'
-  })
+async function handleUpgrade() {
+  try {
+    // Import purchase utilities
+    const { purchasePro } = await import('@/utils/purchases')
+
+    // Show loading dialog
+    const loadingDialog = $q.dialog({
+      title: t('settings.receiptCustomization.processing'),
+      message: t('settings.receiptCustomization.pleaseWait'),
+      progress: true,
+      persistent: true,
+      ok: false
+    })
+
+    try {
+      // Attempt purchase
+      const success = await purchasePro()
+
+      loadingDialog.hide()
+
+      if (success) {
+        // Update store
+        settingsStore.isPro = true
+
+        // Handle pro upgrade in ads store
+        const { useAdsStore } = await import('@/stores/ads')
+        const adsStore = useAdsStore()
+        await adsStore.handleProUpgrade()
+
+        // Show success message
+        $q.notify({
+          type: 'positive',
+          message: t('settings.receiptCustomization.upgradeSuccess'),
+          icon: 'check_circle',
+          timeout: 3000
+        })
+
+        // Reload settings to enable Pro features
+        await receiptStore.loadSettings()
+      } else {
+        // User cancelled or purchase failed
+        $q.notify({
+          type: 'info',
+          message: t('settings.receiptCustomization.upgradeCancelled'),
+          icon: 'info'
+        })
+      }
+    } catch (error: any) {
+      loadingDialog.hide()
+
+      console.error('Purchase error:', error)
+
+      let errorMessage = t('settings.receiptCustomization.upgradeError')
+
+      // Handle specific error cases
+      if (error.message?.includes('must be configured') || error.message?.includes('not configured')) {
+        errorMessage = t('settings.receiptCustomization.notConfigured')
+      } else if (error.message?.includes('No packages available')) {
+        errorMessage = t('settings.receiptCustomization.noPackagesAvailable')
+      } else if (error.message?.includes('not available on web')) {
+        errorMessage = t('settings.receiptCustomization.webNotSupported')
+      }
+
+      $q.notify({
+        type: 'negative',
+        message: errorMessage,
+        icon: 'error',
+        timeout: 5000
+      })
+    }
+  } catch (error) {
+    console.error('Failed to load purchase module:', error)
+    $q.notify({
+      type: 'negative',
+      message: t('common.error'),
+      icon: 'error'
+    })
+  }
 }
 
 // Watch for store changes and sync local state

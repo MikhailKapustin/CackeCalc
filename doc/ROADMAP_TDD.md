@@ -2737,13 +2737,13 @@ describe('Secure Storage', () => {
     const status = {
       isPro: true,
       purchaseDate: '2025-01-15T10:00:00Z',
-      productId: 'cakecost_pro'
+      productId: 'cakecalc_pro'
     }
 
     await saveProStatus(status)
 
     expect(SecureStoragePlugin.set).toHaveBeenCalledWith({
-      key: 'cakecost_pro_status',
+      key: 'cakecalc_pro_status',
       value: JSON.stringify(status)
     })
   })
@@ -2775,7 +2775,7 @@ describe('Secure Storage', () => {
     // Mock In-App Purchase
     const InAppPurchase = {
       restorePurchases: vi.fn().mockResolvedValue([
-        { productId: 'cakecost_pro' }
+        { productId: 'cakecalc_pro' }
       ])
     }
 
