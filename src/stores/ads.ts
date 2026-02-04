@@ -40,6 +40,19 @@ export const useAdsStore = defineStore('ads', () => {
     return now - lastInterstitialTime.value >= INTERSTITIAL_COOLDOWN
   })
 
+  /**
+   * Dynamic banner height for content padding
+   * Returns CSS value that includes safe-area-inset-bottom for devices with notch
+   */
+  const bannerHeight = computed(() => {
+    if (!isBannerVisible.value || !shouldShowAds.value) {
+      return '0px'
+    }
+    // Adaptive banner height: typically 50-100px depending on device
+    // Using 60px as average, plus safe area inset for iOS devices
+    return 'calc(60px + env(safe-area-inset-bottom, 0px))'
+  })
+
   // Actions
   async function initializeAds() {
     console.log('🔔 AdMob: initializeAds() called')
@@ -235,6 +248,7 @@ export const useAdsStore = defineStore('ads', () => {
     // Getters
     shouldShowAds,
     canShowInterstitial,
+    bannerHeight,
 
     // Actions
     initializeAds,

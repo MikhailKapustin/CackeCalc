@@ -1,5 +1,5 @@
 <template>
-  <QPage padding>
+  <QPage padding :style="{ paddingBottom: adsStore.bannerHeight }">
     <div class="q-pa-md">
       <!-- Page Header -->
       <div class="row items-center justify-between q-mb-md">

@@ -19,6 +19,13 @@ app.use(Quasar, {
   plugins: {
     Notify,
     Dialog
+  },
+  config: {
+    notify: {
+      position: 'top',  // Show notifications at top to avoid overlap with bottom banner ad
+      timeout: 3000,    // Auto-hide after 3 seconds
+      progress: true    // Show progress bar
+    }
   }
 })
 
