@@ -65,3 +65,7 @@ Thumbs.db
 *.swp
 *~
 /CLAUDE.md
+
+# Ad-hoc screenshots dropped in the project root while debugging
+/img.png
+/img_*.png
