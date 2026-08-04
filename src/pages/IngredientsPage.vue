@@ -65,18 +65,23 @@ const highlightedIngredientId = ref<number | null>(null)
 onMounted(async () => {
   try {
     await store.loadIngredients()
-
-    // Show banner ad for Free users
-    try {
-      await adsStore.showBanner()
-    } catch (adError) {
-      console.warn('Failed to show banner ad:', adError)
-    }
   } catch (error) {
-    $q.notify({
-      type: 'negative',
-      message: t('common.error')
-    })
+    // SQLite plugin can take up to ~5s to initialize on Android — retry silently
+    console.warn('Failed to load ingredients on mount, retrying in 5s:', error)
+    setTimeout(async () => {
+      try {
+        await store.loadIngredients()
+      } catch (retryError) {
+        console.error('Failed to load ingredients after retry:', retryError)
+      }
+    }, 5000)
+  }
+
+  // Show banner ad for Free users
+  try {
+    await adsStore.showBanner()
+  } catch (adError) {
+    console.warn('Failed to show banner ad:', adError)
   }
 })
 

@@ -8,6 +8,13 @@ const config: CapacitorConfig = {
     AdMob: {
       testingDevices: [],
       initializeForTesting: false
+    },
+    CapacitorSQLite: {
+      androidIsEncryption: false,
+      androidBiometric: {
+        biometricAuth: false,
+        biometricTitle: "Biometric login for capacitor sqlite"
+      }
     }
   }
 };

@@ -13,28 +13,47 @@ import '@quasar/extras/material-icons/material-icons.css'
 // Import Quasar css
 import 'quasar/dist/quasar.css'
 
-const app = createApp(App)
+async function bootstrap() {
+  const app = createApp(App)
 
-app.use(Quasar, {
-  plugins: {
-    Notify,
-    Dialog
-  },
-  config: {
-    notify: {
-      position: 'top',  // Show notifications at top to avoid overlap with bottom banner ad
-      timeout: 3000,    // Auto-hide after 3 seconds
-      progress: true    // Show progress bar
+  app.use(Quasar, {
+    plugins: {
+      Notify,
+      Dialog
+    },
+    config: {
+      notify: {
+        position: 'top',  // Show notifications at top to avoid overlap with bottom banner ad
+        timeout: 3000,    // Auto-hide after 3 seconds
+        progress: true    // Show progress bar
+      }
     }
+  })
+
+  app.use(createPinia())
+  app.use(i18n)
+
+  // Pre-initialize database BEFORE mounting to avoid race condition:
+  // Without this, IngredientsPage.onMounted calls getDatabase() immediately
+  // while the native SQLite plugin is still starting up → error notification on first launch
+  try {
+    console.log('🗄️ Pre-initializing database...')
+    const { getDatabase } = await import('@/database/db')
+    await getDatabase()
+    console.log('✅ Database pre-initialized')
+  } catch (e) {
+    console.warn('⚠️ Database pre-init failed, will retry on demand:', e)
   }
-})
 
-app.use(createPinia())
-app.use(i18n)
+  app.mount('#app')
 
-app.mount('#app')
+  // Initialize settings after app is mounted
+  initializeSettings().catch(error => {
+    console.error('💥 Critical initialization error:', error)
+    console.log('⚠️ App will continue but some features may not work')
+  })
+}
 
-// Initialize settings after app is mounted
 async function initializeSettings() {
   console.log('🚀 Starting app initialization...')
 
@@ -52,19 +71,40 @@ async function initializeSettings() {
     console.log('ℹ️ Continuing without purchases')
   }
 
-  // Step 2: Load Pro status from Secure Storage (after RevenueCat is initialized)
+  // Step 2: Load Pro status from Secure Storage (fast, no network)
   try {
     console.log('🔐 Loading Pro status from Secure Storage...')
     const { initializeProStatus } = await import('@/utils/secureStorage')
     const proStatus = await initializeProStatus()
     settingsStore.isPro = proStatus.isPro
     console.log('✅ Pro status loaded:', proStatus.isPro)
-    console.log('🔔 Full Pro Status:', JSON.stringify(proStatus))
   } catch (proError) {
     console.warn('⚠️ Failed to load Pro status, defaulting to free:', proError)
     settingsStore.isPro = false
-    console.log('🔔 Pro status after error:', settingsStore.isPro)
   }
+
+  // Step 2b: Background verification with RevenueCat (after BillingClient connects ~2s)
+  // Does not block startup — updates Pro status silently if entitlement found
+  setTimeout(async () => {
+    try {
+      const { getCustomerInfo } = await import('@/utils/purchases')
+      const customerInfo = await getCustomerInfo()
+      if (customerInfo?.entitlements?.active?.['cakecalc_pro'] !== undefined) {
+        if (!settingsStore.isPro) {
+          console.log('✅ RevenueCat background check: Pro entitlement found, activating')
+          const { handlePurchaseSuccess } = await import('@/utils/secureStorage')
+          await handlePurchaseSuccess('cakecalc_pro')
+          settingsStore.isPro = true
+          // Update ads if needed
+          const { useAdsStore } = await import('@/stores/ads')
+          const adsStore = useAdsStore()
+          await adsStore.handleProUpgrade()
+        }
+      }
+    } catch (e) {
+      console.log('ℹ️ RevenueCat background check skipped:', e)
+    }
+  }, 3000)
 
   // Step 3: Load settings from database
   try {
@@ -118,8 +158,6 @@ async function initializeSettings() {
   console.log('✅ App initialization complete')
 }
 
-// Run initialization and catch any unhandled errors
-initializeSettings().catch(error => {
-  console.error('💥 Critical initialization error:', error)
-  console.log('⚠️ App will continue but some features may not work')
+bootstrap().catch(error => {
+  console.error('💥 Fatal bootstrap error:', error)
 })

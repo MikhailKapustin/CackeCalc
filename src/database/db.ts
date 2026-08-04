@@ -21,22 +21,30 @@ export async function getDatabase(): Promise<SQLiteDBConnection> {
     return initPromise
   }
 
-  // Start new initialization
+  // Start new initialization with retry for transient plugin errors on first launch
   initPromise = (async () => {
-    try {
-      console.log('🗄️ Initializing SQLite database...')
-      dbInstance = await initializeDatabase('cakecost.db')
-      console.log('✓ Database initialized successfully')
-      return dbInstance
-    } catch (error) {
-      console.error('❌ Failed to initialize database:', error)
-      // Clear the promise so next call can retry
-      initPromise = null
-      throw new Error('Database initialization failed. The app may not work correctly.')
-    } finally {
-      // Clear the promise once initialization is complete
-      initPromise = null
+    const MAX_ATTEMPTS = 3
+    let lastError: unknown
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        if (attempt > 1) {
+          console.log(`🗄️ Retrying database initialization (attempt ${attempt})...`)
+          await new Promise(r => setTimeout(r, 400 * attempt))
+        } else {
+          console.log('🗄️ Initializing SQLite database...')
+        }
+        dbInstance = await initializeDatabase('cakecost.db')
+        console.log('✓ Database initialized successfully')
+        initPromise = null
+        return dbInstance
+      } catch (error) {
+        lastError = error
+        console.warn(`⚠️ Database init attempt ${attempt} failed:`, error)
+      }
     }
+    console.error('❌ Database initialization failed after all attempts:', lastError)
+    initPromise = null
+    throw new Error('Database initialization failed. The app may not work correctly.')
   })()
 
   return initPromise
