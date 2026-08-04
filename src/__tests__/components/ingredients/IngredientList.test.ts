@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { Quasar } from 'quasar'
 import IngredientList from '@/components/ingredients/IngredientList.vue'
 import { useIngredientsStore } from '@/stores/ingredients'
+import { createTestI18n } from '../../helpers/i18n'
 
 describe('IngredientList', () => {
   let wrapper: any
@@ -15,7 +16,7 @@ describe('IngredientList', () => {
 
     wrapper = mount(IngredientList, {
       global: {
-        plugins: [Quasar]
+        plugins: [Quasar, createTestI18n()]
       }
     })
   })

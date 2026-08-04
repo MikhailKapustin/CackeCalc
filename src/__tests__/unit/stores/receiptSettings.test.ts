@@ -17,13 +17,17 @@ vi.mock('@capacitor/filesystem', () => ({
   }
 }))
 
-// Mock database
-vi.mock('@/database/db', () => ({
-  db: {
+// Mock database — the store reaches the connection through getDatabase()
+vi.mock('@/database/db', () => {
+  const connection = {
     query: vi.fn().mockResolvedValue({ values: [] }),
     execute: vi.fn().mockResolvedValue({ changes: { lastId: 1 } })
   }
-}))
+  return {
+    db: connection,
+    getDatabase: vi.fn().mockResolvedValue(connection)
+  }
+})
 
 describe('Receipt Settings Store', () => {
   beforeEach(() => {

@@ -15,7 +15,8 @@ describe('Settings Store', () => {
 
     it('should have default currency', () => {
       const store = useSettingsStore()
-      expect(store.currency).toBe('₽')
+      // Default was changed from '₽' to '$' when the app went international
+      expect(store.currency).toBe('$')
     })
 
     it('should have default language', () => {

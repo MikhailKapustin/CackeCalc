@@ -33,6 +33,15 @@ vi.mock('@capacitor-community/admob', () => ({
     FailedToShow: 'interstitialAdFailedToShow',
     Dismissed: 'interstitialAdDismissed'
   },
+  // Used by the store to track banner size / lifecycle (dynamic banner height)
+  BannerAdPluginEvents: {
+    Loaded: 'bannerAdLoaded',
+    FailedToLoad: 'bannerAdFailedToLoad',
+    SizeChanged: 'bannerAdSizeChanged',
+    Opened: 'bannerAdOpened',
+    Closed: 'bannerAdClosed',
+    AdImpression: 'bannerAdImpression'
+  },
   AdMob: {
     initialize: vi.fn().mockResolvedValue(undefined),
     showBanner: vi.fn().mockResolvedValue(undefined),
@@ -46,6 +55,21 @@ vi.mock('@capacitor-community/admob', () => ({
   BannerAdOptions: {},
   InterstitialAdOptions: {}
 }))
+
+/**
+ * The store marks the banner visible only when AdMob reports it loaded
+ * (BannerAdPluginEvents.Loaded), not right after showBanner() returns.
+ * Tests have to fire that event the way the native plugin would.
+ */
+async function emitBannerLoaded() {
+  const { AdMob } = await import('@capacitor-community/admob')
+  const calls = (AdMob.addListener as any).mock.calls as Array<[string, () => void]>
+  const handler = calls.find(([event]) => event === 'bannerAdLoaded')?.[1]
+  if (!handler) {
+    throw new Error('Store did not subscribe to BannerAdPluginEvents.Loaded')
+  }
+  handler()
+}
 
 describe('Ads Store - AdMob', () => {
   beforeEach(() => {
@@ -99,6 +123,7 @@ describe('Ads Store - AdMob', () => {
       await adsStore.initializeAds()
 
       await adsStore.showBanner()
+      await emitBannerLoaded()
 
       expect(adsStore.isBannerVisible).toBe(true)
       expect(adsStore.impressionsCount).toBe(1)
@@ -122,6 +147,7 @@ describe('Ads Store - AdMob', () => {
       settingsStore.isPro = false
       await adsStore.initializeAds()
       await adsStore.showBanner()
+      await emitBannerLoaded()
 
       expect(adsStore.isBannerVisible).toBe(true)
 
@@ -137,6 +163,7 @@ describe('Ads Store - AdMob', () => {
       settingsStore.isPro = false
       await adsStore.initializeAds()
       await adsStore.showBanner()
+      await emitBannerLoaded()
 
       expect(adsStore.isBannerVisible).toBe(true)
 

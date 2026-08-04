@@ -53,11 +53,12 @@ describe('RASP Utils', () => {
       const config = getDefaultRASPConfig()
 
       expect(config.androidConfig).toBeDefined()
-      expect(config.androidConfig?.packageName).toBe('com.cakecost.app')
+      // Real application id, as registered in Google Play
+      expect(config.androidConfig?.packageName).toBe('com.gliderk.cakecalc')
       expect(config.androidConfig?.certificateHashes).toHaveLength(1)
 
       expect(config.iosConfig).toBeDefined()
-      expect(config.iosConfig?.appBundleIds).toBe('com.cakecost.app')
+      expect(config.iosConfig?.appBundleIds).toBe('com.gliderk.cakecalc')
 
       expect(config.watcherMail).toBe('security@cakecost.app')
     })

@@ -6,6 +6,7 @@ import { Quasar } from 'quasar'
 import RecipeList from '@/components/recipes/RecipeList.vue'
 import { useRecipesStore } from '@/stores/recipes'
 import { useIngredientsStore } from '@/stores/ingredients'
+import { createTestI18n } from '../../helpers/i18n'
 
 describe('RecipeList', () => {
   let wrapper: any
@@ -17,7 +18,7 @@ describe('RecipeList', () => {
 
     wrapper = mount(RecipeList, {
       global: {
-        plugins: [Quasar]
+        plugins: [Quasar, createTestI18n()]
       }
     })
   })
