@@ -16,10 +16,8 @@ export interface ProStatus {
  * Save Pro status to secure storage (Keychain on iOS, KeyStore on Android)
  */
 export async function saveProStatus(status: ProStatus): Promise<void> {
-  await SecureStorage.set({
-    key: PRO_STATUS_KEY,
-    value: JSON.stringify(status)
-  })
+  // Plugin API is positional and serializes the value itself: set(key, data)
+  await SecureStorage.set(PRO_STATUS_KEY, status)
 }
 
 /**
@@ -28,21 +26,20 @@ export async function saveProStatus(status: ProStatus): Promise<void> {
  */
 export async function getProStatus(): Promise<boolean> {
   try {
-    const result = await SecureStorage.get({
-      key: PRO_STATUS_KEY
-    })
-
-    const status: ProStatus = JSON.parse(result.value)
-    return status.isPro
+    // get() returns the stored value itself (already deserialized), or null
+    const status = (await SecureStorage.get(PRO_STATUS_KEY)) as ProStatus | null
+    return status?.isPro === true
   } catch (error) {
-    // Key not found or parse error - default to free
+    // Storage unavailable or corrupted value - default to free
     return false
   }
 }
 
 /**
- * Initialize Pro status by verifying with RevenueCat
- * This should be called on app startup
+ * Load Pro status on app startup.
+ *
+ * Reads Secure Storage only — RevenueCat is deliberately not called here
+ * (see step 2 below); verification happens in the background after startup.
  */
 export async function initializeProStatus(): Promise<ProStatus> {
   console.log('🔔 initializeProStatus: Starting...')
@@ -58,10 +55,11 @@ export async function initializeProStatus(): Promise<ProStatus> {
     let currentStatus: ProStatus
     try {
       console.log('🔔 initializeProStatus: Reading from Secure Storage...')
-      const result = await SecureStorage.get({
-        key: PRO_STATUS_KEY
-      })
-      currentStatus = JSON.parse(result.value)
+      const stored = (await SecureStorage.get(PRO_STATUS_KEY)) as ProStatus | null
+      if (!stored) {
+        throw new Error('No stored Pro status')
+      }
+      currentStatus = stored
       console.log('🔔 initializeProStatus: Found existing status:', currentStatus)
     } catch (error) {
       // First run - no status yet
@@ -69,55 +67,11 @@ export async function initializeProStatus(): Promise<ProStatus> {
       currentStatus = { isPro: false }
     }
 
-    // 2. Verify purchase with RevenueCat
-    let hasPro = false
-    try {
-      console.log('🔔 initializeProStatus: Importing RevenueCat...')
-      const { Purchases } = await import('@revenuecat/purchases-capacitor')
-
-      console.log('🔔 initializeProStatus: Checking if RevenueCat is configured...')
-      try {
-        // Try to get customer info first - this will fail if RevenueCat is not configured
-        await Purchases.getCustomerInfo()
-      } catch (configError: any) {
-        // RevenueCat not configured - skip verification
-        if (configError.message?.includes('not configured') || configError.message?.includes('API key')) {
-          console.warn('⚠️ initializeProStatus: RevenueCat not configured, skipping verification')
-          console.log('🔔 initializeProStatus: Keeping current status:', currentStatus)
-          return currentStatus
-        }
-        throw configError
-      }
-
-      console.log('🔔 initializeProStatus: Calling restorePurchases...')
-      const { customerInfo } = await Purchases.restorePurchases()
-
-      // Check if user has active Pro entitlement
-      console.log('🔔 initializeProStatus: Customer entitlements:', Object.keys(customerInfo.entitlements.active))
-      hasPro = customerInfo.entitlements.active[PRO_PRODUCT_ID] !== undefined
-      console.log('🔔 initializeProStatus: Has Pro entitlement:', hasPro)
-    } catch (error) {
-      // RevenueCat error - keep current status
-      console.warn('⚠️ initializeProStatus: Failed to restore purchases:', error)
-      console.log('🔔 initializeProStatus: Keeping current status:', currentStatus)
-      return currentStatus
-    }
-
-    // 3. Update status based on RevenueCat verification
-    const newStatus: ProStatus = {
-      isPro: hasPro,
-      purchaseDate: hasPro ? (currentStatus.purchaseDate || new Date().toISOString()) : undefined,
-      productId: hasPro ? PRO_PRODUCT_ID : undefined,
-      lastVerified: new Date().toISOString()
-    }
-
-    console.log('🔔 initializeProStatus: New status:', newStatus)
-
-    // 4. Save updated status
-    await saveProStatus(newStatus)
-
-    console.log('✅ initializeProStatus: Complete, returning:', newStatus)
-    return newStatus
+    // 2. Return status from Secure Storage only (do not call RevenueCat on startup)
+    // RevenueCat BillingClient needs time to connect after configure() - calling it
+    // immediately causes "Client is already in the process of connecting" and BILLING_UNAVAILABLE
+    console.log('✅ initializeProStatus: Complete, returning:', currentStatus)
+    return currentStatus
   } catch (error) {
     console.error('❌ initializeProStatus: Failed:', error)
     // Return safe default

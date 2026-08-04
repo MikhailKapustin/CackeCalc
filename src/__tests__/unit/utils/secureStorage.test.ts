@@ -1,12 +1,15 @@
 // src/__tests__/unit/utils/secureStorage.test.ts
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { saveProStatus, getProStatus, initializeProStatus } from '@/utils/secureStorage'
-import { SecureStoragePlugin } from '@aparajita/capacitor-secure-storage'
+import { SecureStorage, __resetSecureStorage } from '@aparajita/capacitor-secure-storage'
 import { Capacitor } from '@capacitor/core'
 
-// Mock @revenuecat/purchases-capacitor
+const PRO_STATUS_KEY = 'cakecalc_pro_status'
+
+// RevenueCat must NOT be touched during startup — see initializeProStatus below
 const mockPurchases = {
-  restorePurchases: vi.fn()
+  restorePurchases: vi.fn(),
+  getCustomerInfo: vi.fn()
 }
 
 vi.mock('@revenuecat/purchases-capacitor', () => ({
@@ -23,21 +26,12 @@ vi.mock('@capacitor/core', () => ({
 describe('Secure Storage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    // Reset mock implementations to default
-    vi.mocked(SecureStoragePlugin.set).mockResolvedValue(undefined)
-    vi.mocked(SecureStoragePlugin.get).mockResolvedValue({ value: '{}' })
+    __resetSecureStorage()
     vi.mocked(Capacitor.isNativePlatform).mockReturnValue(true)
-    mockPurchases.restorePurchases.mockResolvedValue({
-      customerInfo: {
-        entitlements: {
-          active: {}
-        }
-      }
-    })
   })
 
   describe('saveProStatus', () => {
-    it('should save Pro status to secure storage', async () => {
+    it('should save Pro status under the Pro status key', async () => {
       const status = {
         isPro: true,
         purchaseDate: '2025-01-15T10:00:00Z',
@@ -47,197 +41,93 @@ describe('Secure Storage', () => {
 
       await saveProStatus(status)
 
-      expect(SecureStoragePlugin.set).toHaveBeenCalledWith({
-        key: 'cakecalc_pro_status',
-        value: JSON.stringify(status)
-      })
+      // Plugin API is positional: set(key, data)
+      expect(SecureStorage.set).toHaveBeenCalledWith(PRO_STATUS_KEY, status)
     })
 
     it('should save minimal Pro status (only isPro)', async () => {
-      const status = {
-        isPro: false
-      }
+      await saveProStatus({ isPro: false })
 
-      await saveProStatus(status)
-
-      expect(SecureStoragePlugin.set).toHaveBeenCalledWith({
-        key: 'cakecalc_pro_status',
-        value: JSON.stringify(status)
-      })
+      expect(SecureStorage.set).toHaveBeenCalledWith(PRO_STATUS_KEY, { isPro: false })
     })
 
     it('should handle errors when saving', async () => {
-      vi.mocked(SecureStoragePlugin.set).mockRejectedValue(new Error('Storage error'))
+      vi.mocked(SecureStorage.set).mockRejectedValueOnce(new Error('Storage error'))
 
-      const status = { isPro: true }
-
-      await expect(saveProStatus(status)).rejects.toThrow('Storage error')
+      await expect(saveProStatus({ isPro: true })).rejects.toThrow('Storage error')
     })
   })
 
   describe('getProStatus', () => {
-    it('should retrieve Pro status from secure storage', async () => {
-      const mockStatus = {
+    it('should read back a Pro status that was saved', async () => {
+      // Round-trip through the plugin: this is what a real purchase does
+      await saveProStatus({
         isPro: true,
         purchaseDate: '2025-01-15T10:00:00Z',
         productId: 'cakecalc_pro'
-      }
-
-      vi.mocked(SecureStoragePlugin.get).mockResolvedValue({
-        value: JSON.stringify(mockStatus)
       })
 
       const isPro = await getProStatus()
 
-      expect(SecureStoragePlugin.get).toHaveBeenCalledWith({
-        key: 'cakecalc_pro_status'
-      })
+      expect(SecureStorage.get).toHaveBeenCalledWith(PRO_STATUS_KEY)
       expect(isPro).toBe(true)
     })
 
-    it('should return false when Pro status not found', async () => {
-      vi.mocked(SecureStoragePlugin.get).mockRejectedValue(new Error('Key not found'))
-
+    it('should return false when Pro status was never saved', async () => {
       const isPro = await getProStatus()
 
       expect(isPro).toBe(false)
     })
 
-    it('should return false when status is false', async () => {
-      vi.mocked(SecureStoragePlugin.get).mockResolvedValue({
-        value: JSON.stringify({ isPro: false })
-      })
+    it('should return false when saved status is not Pro', async () => {
+      await saveProStatus({ isPro: false })
 
-      const isPro = await getProStatus()
-
-      expect(isPro).toBe(false)
+      expect(await getProStatus()).toBe(false)
     })
 
-    it('should handle corrupted data gracefully', async () => {
-      vi.mocked(SecureStoragePlugin.get).mockResolvedValue({
-        value: 'invalid json'
-      })
+    it('should return false when the plugin fails', async () => {
+      vi.mocked(SecureStorage.get).mockRejectedValueOnce(new Error('Keychain unavailable'))
 
-      const isPro = await getProStatus()
-
-      expect(isPro).toBe(false)
+      expect(await getProStatus()).toBe(false)
     })
   })
 
   describe('initializeProStatus', () => {
-    it('should verify Pro status with RevenueCat on initialization', async () => {
-      // Mock existing status
-      vi.mocked(SecureStoragePlugin.get).mockResolvedValue({
-        value: JSON.stringify({ isPro: false })
-      })
-
-      // Mock successful purchase restoration with active entitlement
-      mockPurchases.restorePurchases.mockResolvedValue({
-        customerInfo: {
-          entitlements: {
-            active: {
-              cakecalc_pro: {
-                identifier: 'cakecalc_pro',
-                isActive: true
-              }
-            }
-          }
-        }
-      })
-
-      const result = await initializeProStatus()
-
-      expect(mockPurchases.restorePurchases).toHaveBeenCalled()
-      expect(SecureStoragePlugin.set).toHaveBeenCalledWith({
-        key: 'cakecalc_pro_status',
-        value: expect.stringContaining('"isPro":true')
-      })
-      expect(result.isPro).toBe(true)
-    })
-
-    it('should reset Pro status when purchase not found', async () => {
-      // Mock existing Pro status
-      vi.mocked(SecureStoragePlugin.get).mockResolvedValue({
-        value: JSON.stringify({ isPro: true })
-      })
-
-      // Mock no active entitlements
-      mockPurchases.restorePurchases.mockResolvedValue({
-        customerInfo: {
-          entitlements: {
-            active: {}
-          }
-        }
-      })
-
-      const result = await initializeProStatus()
-
-      expect(SecureStoragePlugin.set).toHaveBeenCalledWith({
-        key: 'cakecalc_pro_status',
-        value: expect.stringContaining('"isPro":false')
-      })
-      expect(result.isPro).toBe(false)
-    })
-
-    it('should initialize with default values on first run', async () => {
-      // Mock key not found (first run)
-      vi.mocked(SecureStoragePlugin.get).mockRejectedValue(new Error('Key not found'))
-      mockPurchases.restorePurchases.mockResolvedValue({
-        customerInfo: {
-          entitlements: {
-            active: {}
-          }
-        }
-      })
-
-      const result = await initializeProStatus()
-
-      expect(result.isPro).toBe(false)
-      expect(SecureStoragePlugin.set).toHaveBeenCalled()
-    })
-
-    it('should preserve existing Pro status if purchase still valid', async () => {
-      vi.mocked(SecureStoragePlugin.get).mockResolvedValue({
-        value: JSON.stringify({
-          isPro: true,
-          purchaseDate: '2025-01-15T10:00:00Z',
-          productId: 'cakecalc_pro'
-        })
-      })
-
-      mockPurchases.restorePurchases.mockResolvedValue({
-        customerInfo: {
-          entitlements: {
-            active: {
-              cakecalc_pro: {
-                identifier: 'cakecalc_pro',
-                isActive: true
-              }
-            }
-          }
-        }
+    it('should restore a previously purchased Pro status on startup', async () => {
+      await saveProStatus({
+        isPro: true,
+        purchaseDate: '2025-01-15T10:00:00Z',
+        productId: 'cakecalc_pro',
+        lastVerified: '2025-01-15T10:00:00Z'
       })
 
       const result = await initializeProStatus()
 
       expect(result.isPro).toBe(true)
-      // Should update lastVerified
-      expect(SecureStoragePlugin.set).toHaveBeenCalledWith({
-        key: 'cakecalc_pro_status',
-        value: expect.stringContaining('lastVerified')
-      })
+      expect(result.productId).toBe('cakecalc_pro')
     })
 
-    it('should handle RevenueCat errors gracefully', async () => {
-      vi.mocked(SecureStoragePlugin.get).mockResolvedValue({
-        value: JSON.stringify({ isPro: false })
-      })
+    it('should return free status on first run', async () => {
+      const result = await initializeProStatus()
 
-      mockPurchases.restorePurchases.mockRejectedValue(new Error('RevenueCat error'))
+      expect(result.isPro).toBe(false)
+    })
+
+    it('should not call RevenueCat during startup', async () => {
+      // Calling RevenueCat right after configure() races the Android BillingClient
+      // ("Client is already in the process of connecting" → BILLING_UNAVAILABLE).
+      // Verification happens later, in the background — see bootstrap() in main.ts.
+      await initializeProStatus()
+
+      expect(mockPurchases.restorePurchases).not.toHaveBeenCalled()
+      expect(mockPurchases.getCustomerInfo).not.toHaveBeenCalled()
+    })
+
+    it('should fall back to free status when the plugin fails', async () => {
+      vi.mocked(SecureStorage.get).mockRejectedValueOnce(new Error('Keychain unavailable'))
 
       const result = await initializeProStatus()
 
-      // Should return current status without crashing
       expect(result.isPro).toBe(false)
     })
 
@@ -247,8 +137,7 @@ describe('Secure Storage', () => {
       const result = await initializeProStatus()
 
       expect(result.isPro).toBe(false)
-      // Should not call RevenueCat on web
-      expect(mockPurchases.restorePurchases).not.toHaveBeenCalled()
+      expect(SecureStorage.get).not.toHaveBeenCalled()
     })
   })
 })
