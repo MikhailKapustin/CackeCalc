@@ -28,7 +28,11 @@ fi
 
 # Check if keystore file exists
 KEYSTORE_PATH=$(grep "storeFile=" android/key.properties | cut -d'=' -f2)
-KEYSTORE_FULL_PATH="android/$KEYSTORE_PATH"
+# storeFile may be absolute or relative to android/
+case "$KEYSTORE_PATH" in
+    /*) KEYSTORE_FULL_PATH="$KEYSTORE_PATH" ;;
+    *)  KEYSTORE_FULL_PATH="android/$KEYSTORE_PATH" ;;
+esac
 
 if [ ! -f "$KEYSTORE_FULL_PATH" ]; then
     echo -e "${RED}❌ Error: Keystore file not found at $KEYSTORE_FULL_PATH${NC}"
