@@ -124,9 +124,10 @@ const exportLoading = ref(false)
 const importLoading = ref(false)
 const fileInput = ref<HTMLInputElement>()
 
-// Version comes from the installed package, not from a literal in the markup:
-// the hardcoded "1.0.0" had been wrong for sixteen releases
-const appVersion = ref('—')
+// Version comes from the installed package, never from a literal in the markup:
+// the hardcoded "1.0.0" had been wrong for sixteen releases. The build-time value
+// is the fallback, so a missing native plugin shows a version rather than a dash.
+const appVersion = ref(__APP_VERSION__ || '—')
 
 onMounted(async () => {
   if (!Capacitor.isNativePlatform()) return
@@ -135,7 +136,7 @@ onMounted(async () => {
     const info = await App.getInfo()
     appVersion.value = `${info.version} (${info.build})`
   } catch (error) {
-    console.warn('Could not read app version:', error)
+    console.warn('Could not read app version from the native layer:', error)
   }
 })
 

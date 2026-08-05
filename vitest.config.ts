@@ -12,6 +12,11 @@ export default defineConfig({
       autoImportComponentCase: 'pascal'
     })
   ],
+  // Подставляется Vite в обычной сборке; без этого любой тест, монтирующий
+  // экран настроек, падал бы на ReferenceError вместо проверки поведения
+  define: {
+    __APP_VERSION__: JSON.stringify('test')
+  },
   test: {
     globals: true,
     environment: 'jsdom',

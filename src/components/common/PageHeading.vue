@@ -17,7 +17,8 @@ defineProps<{ title: string }>()
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px 12px;
+  flex-wrap: wrap;
   margin-bottom: 14px;
 }
 
@@ -29,9 +30,25 @@ defineProps<{ title: string }>()
   letter-spacing: -0.015em;
   color: var(--ct-ink);
   margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .ct-heading__action {
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* На телефоне «Добавить ингредиент» и заголовок в одну строку не помещаются —
+   и по-русски, и по-немецки. Кнопка уходит под заголовок во всю ширину: заодно
+   получается крупная цель для пальца, а не обрезанная надпись. */
+@media (max-width: 430px) {
+  .ct-heading__action {
+    flex: 1 0 100%;
+  }
+
+  .ct-heading__action :deep(.q-btn) {
+    width: 100%;
+  }
 }
 </style>

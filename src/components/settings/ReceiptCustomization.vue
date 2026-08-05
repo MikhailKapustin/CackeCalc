@@ -119,13 +119,13 @@
           <!-- Background Color -->
           <div class="q-mb-md">
             <div class="text-caption q-mb-sm">{{ $t('settings.receiptCustomization.backgroundColor') }}</div>
-            <div class="row items-center q-gutter-sm">
+            <div class="ct-color-row">
               <QInput
                 v-model="backgroundColor"
                 :rules="[validateHexColor]"
                 outlined
                 dense
-                class="col"
+                class="ct-color-row__field"
                 @blur="handleBackgroundColorChange"
               >
                 <template #prepend>
@@ -163,13 +163,13 @@
           <!-- Text Color -->
           <div>
             <div class="text-caption q-mb-sm">{{ $t('settings.receiptCustomization.textColor') }}</div>
-            <div class="row items-center q-gutter-sm">
+            <div class="ct-color-row">
               <QInput
                 v-model="textColor"
                 :rules="[validateHexColor]"
                 outlined
                 dense
-                class="col"
+                class="ct-color-row__field"
                 @blur="handleTextColorChange"
               >
                 <template #prepend>
@@ -710,11 +710,28 @@ onMounted(async () => {
   border: 1px solid #ccc;
 }
 
+/* Поле с кодом цвета и палитра стоят в одной строке и выравниваются по верху:
+   у поля есть место под сообщение валидации, из-за чего выравнивание по центру
+   разносило их, а отрицательные поля q-gutter не давали палитре поместиться */
+.ct-color-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.ct-color-row__field {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .color-picker {
+  flex: 0 0 auto;
   width: 40px;
   height: 40px;
-  border: none;
-  border-radius: 4px;
+  padding: 0;
+  border: 1px solid var(--ct-line);
+  border-radius: 5px;
+  background: var(--ct-surface);
   cursor: pointer;
 }
 
