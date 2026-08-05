@@ -1,8 +1,8 @@
-# Privacy Policy — CakeCost
+# Privacy Policy — Cake calc
 
 _Last updated: 5 August 2026_
 
-CakeCost (`com.gliderk.cakecalc`) is a cost calculator for confectioners. This policy explains what the app does with data, in plain terms.
+Cake calc (`com.gliderk.cakecalc`) is a cost calculator for confectioners. This policy explains what the app does with data, in plain terms.
 
 ## What stays on your device
 
@@ -51,11 +51,11 @@ Questions about this policy: **security@cakecost.app**
 
 ---
 
-# Политика конфиденциальности — CakeCost
+# Политика конфиденциальности — Cake calc
 
 _Обновлено: 5 августа 2026_
 
-CakeCost (`com.gliderk.cakecalc`) — калькулятор себестоимости для кондитеров. Ниже прямо сказано, что приложение делает с данными.
+Cake calc (`com.gliderk.cakecalc`) — калькулятор себестоимости для кондитеров. Ниже прямо сказано, что приложение делает с данными.
 
 ## Что остаётся на вашем устройстве
 

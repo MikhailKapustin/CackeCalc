@@ -1,5 +1,5 @@
 /**
- * Unit conversion utilities for CakeCost application
+ * Unit conversion utilities for the Cake calc application
  * Handles conversions between purchase units and base units
  */
 

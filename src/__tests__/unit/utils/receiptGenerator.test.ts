@@ -58,7 +58,7 @@ describe('Receipt Generator', () => {
       expect(text).toContain('Вес: 2.5 кг')
       expect(text).toContain('Цена за кг: 1 800.00 ₽')
       expect(text).toContain('💰 ИТОГО: 4 500.00 ₽')
-      expect(text).toContain('Посчитано в приложении CakeCost')
+      expect(text).toContain('Посчитано в приложении Cake calc')
     })
 
     it('should format large numbers with spaces', () => {

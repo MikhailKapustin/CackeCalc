@@ -85,7 +85,7 @@ export async function generateReceiptImage(
 
   const settings = customization?.settings
   const showWatermark = customization?.showWatermark ?? true
-  const watermarkText = customization?.watermarkText ?? 'Посчитано в приложении CakeCost'
+  const watermarkText = customization?.watermarkText ?? 'Посчитано в приложении Cake calc'
 
   // Get customization values or defaults
   const backgroundColor = settings?.backgroundColor ?? '#FFFFFF'

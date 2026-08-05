@@ -64,7 +64,7 @@ export function generateReceiptText(receipt: ReceiptData): string {
     '',
     `💰 ИТОГО: ${formatNumber(total)} ${currency}`,
     '',
-    'Посчитано в приложении CakeCost для кондитеров',
+    'Посчитано в приложении Cake calc для кондитеров',
     '[Ссылка на приложение]'
   ]
 

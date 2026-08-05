@@ -33,7 +33,7 @@ vi.mock('@revenuecat/purchases-capacitor', async importOriginal => {
       {
         product: {
           identifier: 'cakecalc_pro',
-          title: 'CakeCost Pro',
+          title: 'Cake calc Pro',
           description: 'Unlock all features',
           price: '$4.99',
           priceString: '$4.99'

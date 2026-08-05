@@ -47,7 +47,7 @@ export const useReceiptSettingsStore = defineStore('receiptSettings', () => {
   })
 
   const watermarkText = computed(() => {
-    return 'Посчитано в приложении CakeCost'
+    return 'Посчитано в приложении Cake calc'
   })
 
   // Helper: Check Pro access

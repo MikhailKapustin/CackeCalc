@@ -3,7 +3,7 @@
     <QLayout view="lHh Lpr lFf">
       <QHeader class="ct-header">
         <QToolbar class="ct-toolbar">
-          <QToolbarTitle class="ct-wordmark">CakeCost</QToolbarTitle>
+          <QToolbarTitle class="ct-wordmark">Cake calc</QToolbarTitle>
 
           <!-- Settings are not daily work, so they live here instead of taking
                a third of the navigation -->

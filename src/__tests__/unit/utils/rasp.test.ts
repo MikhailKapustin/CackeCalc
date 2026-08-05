@@ -55,7 +55,16 @@ describe('RASP Utils', () => {
       expect(config.androidConfig).toBeDefined()
       // Real application id, as registered in Google Play
       expect(config.androidConfig?.packageName).toBe('com.gliderk.cakecalc')
-      expect(config.androidConfig?.certificateHashes).toHaveLength(1)
+
+      // Two real signing hashes: the Play App Signing certificate and the upload
+      // key. The check is that these are actual base64 SHA-256 values — a
+      // placeholder means the integrity check verifies nothing, which is exactly
+      // how this shipped until now.
+      const hashes = config.androidConfig?.certificateHashes ?? []
+      expect(hashes).toHaveLength(2)
+      for (const hash of hashes) {
+        expect(hash).toMatch(/^[A-Za-z0-9+/]{43}=$/)
+      }
 
       expect(config.iosConfig).toBeDefined()
       expect(config.iosConfig?.appBundleIds).toBe('com.gliderk.cakecalc')

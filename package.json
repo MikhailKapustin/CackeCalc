@@ -1,7 +1,7 @@
 {
   "name": "cakecalk",
   "version": "1.0.0",
-  "description": "CakeCost - Recipe pricing calculator for confectioners",
+  "description": "Cake calc - Recipe pricing calculator for confectioners",
   "type": "module",
   "scripts": {
     "dev": "vite",

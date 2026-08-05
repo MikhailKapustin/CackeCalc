@@ -63,7 +63,7 @@
     "pricePerUnit": "Цена за {unit}",
     "receiptTitle": "🍰 Ваш расчет заказа",
     "item": "Торт",
-    "receiptFooter": "Посчитано в приложении CakeCost",
+    "receiptFooter": "Посчитано в приложении Cake calc",
     "enterAmount": "Укажите количество",
     "amountPositive": "Количество должно быть больше нуля",
     "receiptPreview": "Предпросмотр чека"

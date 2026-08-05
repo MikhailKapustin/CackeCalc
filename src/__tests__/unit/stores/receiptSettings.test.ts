@@ -304,7 +304,7 @@ describe('Receipt Settings Store', () => {
       settingsStore.isPro = false
 
       expect(receiptStore.shouldShowWatermark).toBe(true)
-      expect(receiptStore.watermarkText).toContain('CakeCost')
+      expect(receiptStore.watermarkText).toContain('Cake calc')
     })
 
     it('should NOT include watermark in Pro version', () => {

@@ -63,7 +63,7 @@
     "pricePerUnit": "Price per {unit}",
     "receiptTitle": "🍰 Your Order Estimate",
     "item": "Item",
-    "receiptFooter": "Calculated via CakeCost app",
+    "receiptFooter": "Calculated via the Cake calc app",
     "enterAmount": "Enter an amount",
     "amountPositive": "Amount must be greater than zero",
     "receiptPreview": "Receipt preview"
