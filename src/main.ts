@@ -33,17 +33,16 @@ async function bootstrap() {
   app.use(createPinia())
   app.use(i18n)
 
-  // Pre-initialize database BEFORE mounting to avoid race condition:
-  // Without this, IngredientsPage.onMounted calls getDatabase() immediately
-  // while the native SQLite plugin is still starting up → error notification on first launch
-  try {
-    console.log('🗄️ Pre-initializing database...')
-    const { getDatabase } = await import('@/database/db')
-    await getDatabase()
-    console.log('✅ Database pre-initialized')
-  } catch (e) {
-    console.warn('⚠️ Database pre-init failed, will retry on demand:', e)
-  }
+  // Start database initialization, but do NOT wait for it: the native SQLite
+  // plugin can take seconds to come up on Android, and awaiting it here left the
+  // user staring at a blank screen for that whole time.
+  // getDatabase() holds a promise lock, so IngredientsPage.onMounted joins this
+  // very initialization instead of racing a second one against it.
+  console.log('🗄️ Starting database initialization...')
+  import('@/database/db')
+    .then(({ getDatabase }) => getDatabase())
+    .then(() => console.log('✅ Database ready'))
+    .catch(e => console.warn('⚠️ Database init failed, will retry on demand:', e))
 
   app.mount('#app')
 
@@ -84,21 +83,41 @@ async function initializeSettings() {
   }
 
   // Step 2b: Background verification with RevenueCat (after BillingClient connects ~2s)
-  // Does not block startup — updates Pro status silently if entitlement found
+  // Does not block startup — reconciles the stored Pro status with the entitlement.
   setTimeout(async () => {
     try {
-      const { getCustomerInfo } = await import('@/utils/purchases')
+      const { getCustomerInfo, PRO_PRODUCT_ID } = await import('@/utils/purchases')
       const customerInfo = await getCustomerInfo()
-      if (customerInfo?.entitlements?.active?.['cakecalc_pro'] !== undefined) {
-        if (!settingsStore.isPro) {
-          console.log('✅ RevenueCat background check: Pro entitlement found, activating')
-          const { handlePurchaseSuccess } = await import('@/utils/secureStorage')
-          await handlePurchaseSuccess('cakecalc_pro')
-          settingsStore.isPro = true
-          // Update ads if needed
-          const { useAdsStore } = await import('@/stores/ads')
-          const adsStore = useAdsStore()
-          await adsStore.handleProUpgrade()
+
+      // No answer at all (offline, SDK not configured, billing unavailable) — keep
+      // whatever is stored. Only a real answer from RevenueCat may change the status.
+      if (!customerInfo) {
+        console.log('ℹ️ RevenueCat background check: no customer info, keeping stored status')
+        return
+      }
+
+      const hasPro = customerInfo.entitlements?.active?.[PRO_PRODUCT_ID] !== undefined
+
+      if (hasPro && !settingsStore.isPro) {
+        console.log('✅ RevenueCat background check: Pro entitlement found, activating')
+        const { handlePurchaseSuccess } = await import('@/utils/secureStorage')
+        await handlePurchaseSuccess(PRO_PRODUCT_ID)
+        settingsStore.isPro = true
+        await adsStore.handleProUpgrade()
+        return
+      }
+
+      if (!hasPro && settingsStore.isPro) {
+        // Entitlement is gone (refund, revoke, chargeback). Without this branch a
+        // refunded purchase kept Pro forever, since nothing else ever clears it.
+        console.log('ℹ️ RevenueCat background check: entitlement no longer active, downgrading to free')
+        const { saveProStatus } = await import('@/utils/secureStorage')
+        await saveProStatus({ isPro: false, lastVerified: new Date().toISOString() })
+        settingsStore.isPro = false
+        try {
+          await adsStore.showBanner()
+        } catch (bannerError) {
+          console.warn('⚠️ Failed to restore banner after downgrade:', bannerError)
         }
       }
     } catch (e) {
