@@ -1,16 +1,18 @@
 <template>
-  <QPage padding :style="{ paddingBottom: adsStore.bannerHeight }">
-    <div class="q-pa-md">
+  <QPage :style="{ paddingBottom: adsStore.bannerHeight }">
+    <div class="ct-page">
       <!-- Page Header -->
-      <div class="row items-center justify-between q-mb-md">
-        <div class="text-h5">{{ $t('ingredients.title') }}</div>
-        <QBtn
-          color="primary"
-          icon="add"
-          :label="$t('ingredients.add')"
-          @click="showAddDialog = true"
-        />
-      </div>
+      <PageHeading :title="$t('ingredients.title')">
+        <template #action>
+          <QBtn
+            unelevated
+            color="primary"
+            icon="add"
+            :label="$t('ingredients.add')"
+            @click="showAddDialog = true"
+          />
+        </template>
+      </PageHeading>
 
       <!-- Ingredients List -->
       <IngredientList
@@ -48,6 +50,7 @@ import { useQuasar } from 'quasar'
 import { useI18n } from 'vue-i18n'
 import { useIngredientsStore } from '@/stores/ingredients'
 import { useAdsStore } from '@/stores/ads'
+import PageHeading from '@/components/common/PageHeading.vue'
 import IngredientList from '@/components/ingredients/IngredientList.vue'
 import IngredientForm from '@/components/ingredients/IngredientForm.vue'
 import type { Ingredient, IngredientInput } from '@/types/ingredient'

@@ -1,0 +1,554 @@
+/* ===========================================================================
+   CakeCost — визуальная система «техкарта»
+   ---------------------------------------------------------------------------
+   Приложение считает деньги людям, которые зарабатывают руками: домашним
+   кондитерам и небольшим пекарням. Отсюда две опоры оформления.
+
+   Первая — числа главнее оформления. Все суммы набраны моноширинным шрифтом с
+   табличными цифрами, поэтому разряды выстраиваются в колонку и цены можно
+   сравнивать глазом, не читая.
+
+   Вторая — язык технологической карты, знакомый по профессии: мелкие капсовые
+   подписи, тонкие линии вместо теней, спокойный «съедобный» цвет. Скругления
+   маленькие: документ, а не пузырь.
+
+   Цвет взят из предметного мира — шоколад, меренга, карамель, фисташка,
+   малина, — а не из палитры фреймворка.
+   =========================================================================== */
+
+@import './fonts.css';
+
+:root {
+  /* --- поверхности и линии -------------------------------------------- */
+  --ct-bg: #fbf6ee;            /* меренга: фон приложения */
+  --ct-surface: #ffffff;       /* карточки, списки */
+  --ct-sunken: #f3ebde;        /* утопленные блоки, поля ввода */
+  --ct-line: #e4d8c6;          /* разделители: несут структуру вместо теней */
+  --ct-line-strong: #cdbba2;
+
+  /* --- текст ------------------------------------------------------------ */
+  --ct-ink: #2b211c;           /* тёмный шоколад */
+  --ct-ink-soft: #6d5c50;
+  --ct-ink-faint: #9a8878;
+
+  /* Шапка держит собственную пару цветов: в тёмной теме «цвет текста» светлый,
+     и подставлять его под фон панели нельзя */
+  --ct-header-bg: #2b211c;
+  --ct-header-ink: #f7efe4;
+  --ct-header-ink-dim: rgba(247, 239, 228, 0.62);
+
+  /* --- акценты ---------------------------------------------------------- */
+  --ct-caramel: #b96a25;       /* основное действие: жжёный сахар */
+  --ct-caramel-soft: #f0dcc4;
+  --ct-pistachio: #5b7c45;     /* прибыль */
+  --ct-pistachio-soft: #e2ebd8;
+  --ct-raspberry: #a3324e;     /* убыток и ошибки */
+  --ct-raspberry-soft: #f6dfe4;
+
+  /* --- лента себестоимости (фирменный элемент) -------------------------- */
+  --ct-ribbon-1: #8c4f1c;
+  --ct-ribbon-2: #b96a25;
+  --ct-ribbon-3: #d99a55;
+  --ct-ribbon-4: #ecc9a3;
+  --ct-ribbon-rest: #ddcdb6;
+
+  /* --- шрифты ----------------------------------------------------------- */
+  --ct-font-display: 'Bitter', Georgia, 'Times New Roman', serif;
+  --ct-font-ui: 'Onest', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --ct-font-num: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* --- ритм ------------------------------------------------------------- */
+  --ct-r-sm: 5px;
+  --ct-r-md: 9px;
+  --ct-gap: 14px;
+}
+
+body.body--dark {
+  --ct-bg: #16110e;
+  --ct-surface: #1f1813;
+  --ct-sunken: #291f18;
+  --ct-line: #3a2d23;
+  --ct-line-strong: #52412f;
+
+  --ct-ink: #f3e9dc;
+  --ct-ink-soft: #bda995;
+  --ct-ink-faint: #8d7a68;
+
+  --ct-header-bg: #221a15;
+  --ct-header-ink: #f3e9dc;
+  --ct-header-ink-dim: rgba(243, 233, 220, 0.55);
+
+  --ct-caramel: #e0974a;
+  --ct-caramel-soft: #3b2a17;
+  --ct-pistachio: #92b075;
+  --ct-pistachio-soft: #263019;
+  --ct-raspberry: #dd7189;
+  --ct-raspberry-soft: #3a1a22;
+
+  --ct-ribbon-1: #e0974a;
+  --ct-ribbon-2: #c07c34;
+  --ct-ribbon-3: #9a6027;
+  --ct-ribbon-4: #6f4620;
+  --ct-ribbon-rest: #4a3a2b;
+}
+
+/* --- сопряжение с Quasar ---------------------------------------------------
+   Quasar раскрашивает свои компоненты через эти переменные, поэтому палитра
+   задаётся один раз здесь и подхватывается везде: кнопками, полями, тостами. */
+:root,
+body.body--dark {
+  --q-primary: var(--ct-caramel);
+  --q-secondary: var(--ct-ink);
+  --q-accent: var(--ct-pistachio);
+  --q-positive: var(--ct-pistachio);
+  --q-negative: var(--ct-raspberry);
+  --q-info: var(--ct-ink-soft);
+  --q-warning: #c98a1e;
+  --q-dark: #1f1813;
+  --q-dark-page: #16110e;
+}
+
+/* ===========================================================================
+   Основа
+   =========================================================================== */
+
+body {
+  font-family: var(--ct-font-ui);
+  background: var(--ct-bg);
+  color: var(--ct-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+.q-page,
+.q-tab-panel,
+.q-page-container {
+  background: var(--ct-bg);
+  color: var(--ct-ink);
+}
+
+/* Заголовки говорят голосом рецептурной карты, а не интерфейса */
+h1, h2, h3, h4, h5, h6,
+.ct-title,
+.text-h4, .text-h5, .text-h6, .text-subtitle1 {
+  font-family: var(--ct-font-display);
+  color: var(--ct-ink);
+  letter-spacing: -0.01em;
+}
+
+/* ===========================================================================
+   Типографические роли
+   =========================================================================== */
+
+/* Мелкая капсовая подпись — та самая деталь спецификации */
+.ct-label {
+  font-family: var(--ct-font-ui);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ct-ink-faint);
+}
+
+/* Любая сумма. Табличные цифры — чтобы разряды стояли колонкой */
+.ct-num {
+  font-family: var(--ct-font-num);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  letter-spacing: -0.02em;
+}
+
+.ct-num-hero {
+  font-family: var(--ct-font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+  color: var(--ct-ink);
+}
+
+.ct-num-unit {
+  font-family: var(--ct-font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ct-ink-faint);
+}
+
+.ct-profit { color: var(--ct-pistachio); }
+.ct-loss { color: var(--ct-raspberry); }
+
+.ct-muted { color: var(--ct-ink-soft); }
+.ct-faint { color: var(--ct-ink-faint); }
+
+/* ===========================================================================
+   Шапка и навигация
+   =========================================================================== */
+
+.ct-header {
+  background: var(--ct-header-bg);
+  color: var(--ct-header-ink);
+  box-shadow: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+}
+
+.ct-header .q-toolbar {
+  min-height: 52px;
+}
+
+.ct-wordmark {
+  font-family: var(--ct-font-display);
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.005em;
+  color: var(--ct-header-ink);
+}
+
+/* Точка над «i» бренда: карамельная запятая после названия */
+.ct-wordmark::after {
+  content: '.';
+  color: var(--ct-caramel);
+}
+
+/* Навигация живёт в шапке, а не внизу: баннер AdMob прибит к нижнему краю
+   экрана и рисуется поверх WebView — нижняя панель вкладок оказалась бы под ним */
+.ct-nav {
+  background: var(--ct-header-bg);
+  color: var(--ct-header-ink-dim);
+  padding-bottom: 2px;
+}
+
+.ct-nav .q-tab {
+  min-height: 50px;
+  font-family: var(--ct-font-ui);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.ct-nav .q-tab__icon {
+  font-size: 21px;
+}
+
+.ct-nav .q-tab--active {
+  color: var(--ct-header-ink);
+}
+
+/* Активная вкладка отмечена карамельной чертой — той же, что и все действия */
+.ct-nav .q-tab--active::after {
+  content: '';
+  position: absolute;
+  left: 22%;
+  right: 22%;
+  bottom: 4px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--ct-caramel);
+}
+
+.ct-nav .q-tab__indicator {
+  display: none;
+}
+
+/* Единое поле страницы: один отступ, а не сумма отступов Quasar и разметки */
+.ct-page {
+  padding: 16px 14px 20px;
+}
+
+/* Раздел настроек: капсовая подпись снаружи карточки, как ярлык на полке */
+.ct-section {
+  margin-bottom: 16px;
+}
+
+.ct-section__label {
+  margin: 0 2px 6px;
+}
+
+.ct-section__hint {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ct-ink-soft);
+}
+
+.ct-card--pad {
+  padding: 12px;
+}
+
+.ct-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ct-dialog-title {
+  font-family: var(--ct-font-display);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ct-header-ink);
+}
+
+/* ===========================================================================
+   Карточки и списки — «позиции спецификации»
+   =========================================================================== */
+
+.ct-card {
+  background: var(--ct-surface);
+  border: 1px solid var(--ct-line);
+  border-radius: var(--ct-r-md);
+  overflow: hidden;
+}
+
+.ct-card + .ct-card {
+  margin-top: 10px;
+}
+
+.ct-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px 10px;
+}
+
+.ct-card__name {
+  font-family: var(--ct-font-display);
+  font-size: 16.5px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ct-ink);
+}
+
+.ct-card__body {
+  padding: 0 14px 12px;
+}
+
+.ct-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 8px 8px 14px;
+  border-top: 1px solid var(--ct-line);
+  background: var(--ct-sunken);
+}
+
+/* Строка «показатель — значение», выровненная по правому краю чисел */
+.ct-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 0;
+}
+
+.ct-row + .ct-row {
+  border-top: 1px dotted var(--ct-line);
+}
+
+.ct-row__key {
+  font-size: 13.5px;
+  color: var(--ct-ink-soft);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ct-row__val {
+  font-family: var(--ct-font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ct-ink);
+  white-space: nowrap;
+}
+
+/* ===========================================================================
+   Лента себестоимости — фирменный элемент
+   ---------------------------------------------------------------------------
+   Цена разложена на слои, как разрез торта: видно, какой ингредиент съедает
+   маржу. Не украшение — единственный экран, где структура затрат читается
+   мгновенно.
+   =========================================================================== */
+
+.ct-ribbon {
+  display: flex;
+  width: 100%;
+  height: 8px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--ct-sunken);
+}
+
+.ct-ribbon--tall {
+  height: 14px;
+  border-radius: 3px;
+}
+
+.ct-ribbon__seg {
+  height: 100%;
+  min-width: 2px;
+}
+
+.ct-ribbon__seg + .ct-ribbon__seg {
+  border-left: 1.5px solid var(--ct-surface);
+}
+
+.ct-ribbon-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 8px;
+}
+
+.ct-ribbon-legend__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ct-ink-soft);
+}
+
+.ct-ribbon-legend__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.ct-ribbon-legend__share {
+  font-family: var(--ct-font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  color: var(--ct-ink-faint);
+}
+
+/* ===========================================================================
+   Поля ввода и кнопки
+   =========================================================================== */
+
+.q-field--outlined .q-field__control {
+  border-radius: var(--ct-r-sm);
+  background: var(--ct-surface);
+}
+
+.q-field--outlined .q-field__control:before {
+  border-color: var(--ct-line-strong);
+}
+
+.q-field__native,
+.q-field__input {
+  font-family: var(--ct-font-ui);
+  color: var(--ct-ink);
+}
+
+/* В денежных и количественных полях цифры тоже табличные */
+.ct-field-num .q-field__native,
+.ct-field-num .q-field__input {
+  font-family: var(--ct-font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+.q-btn {
+  font-family: var(--ct-font-ui);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  border-radius: var(--ct-r-sm);
+}
+
+.q-btn--rectangle {
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+/* Сегментные переключатели (тема оформления): три подписи должны помещаться
+   в строку на узком экране, иначе «Следовать системной» ломается пополам */
+.q-btn-toggle .q-btn {
+  font-size: 12px;
+  line-height: 1.25;
+  padding: 7px 6px;
+  min-height: 40px;
+}
+
+.q-btn-toggle .q-btn .q-btn__content {
+  white-space: normal;
+  text-align: center;
+}
+
+/* ===========================================================================
+   Пустые состояния — приглашение к действию, а не грустная иконка
+   =========================================================================== */
+
+.ct-empty {
+  border: 1px dashed var(--ct-line-strong);
+  border-radius: var(--ct-r-md);
+  padding: 26px 20px;
+  text-align: center;
+  background: var(--ct-surface);
+}
+
+.ct-empty__title {
+  font-family: var(--ct-font-display);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ct-ink);
+}
+
+.ct-empty__hint {
+  margin-top: 5px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--ct-ink-soft);
+}
+
+/* ===========================================================================
+   Мелочи
+   =========================================================================== */
+
+.ct-divider {
+  height: 1px;
+  background: var(--ct-line);
+  border: 0;
+  margin: 14px 0;
+}
+
+/* Метка-«штамп»: статус в языке спецификации */
+.ct-stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  background: var(--ct-caramel-soft);
+  color: var(--ct-caramel);
+}
+
+.ct-stamp--profit {
+  background: var(--ct-pistachio-soft);
+  color: var(--ct-pistachio);
+}
+
+.ct-stamp--loss {
+  background: var(--ct-raspberry-soft);
+  color: var(--ct-raspberry);
+}
+
+/* Доступность: фокус виден всегда, движение уважает системную настройку */
+:focus-visible {
+  outline: 2px solid var(--ct-caramel);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

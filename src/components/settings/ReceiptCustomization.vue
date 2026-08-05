@@ -7,15 +7,15 @@
         <div class="text-caption text-grey-7">{{ $t('settings.receiptCustomization.description') }}</div>
       </div>
       <div class="col-auto">
-        <QBadge v-if="!settingsStore.isPro" color="orange" label="PRO" class="q-px-sm q-py-xs" />
-        <QBadge v-else color="green" label="✓ PRO" class="q-px-sm q-py-xs" />
+        <QBadge v-if="!settingsStore.isPro" label="PRO" class="ct-stamp q-px-sm q-py-xs" />
+        <QBadge v-else label="✓ PRO" class="ct-stamp ct-stamp--profit q-px-sm q-py-xs" />
       </div>
     </div>
 
     <!-- Upgrade to Pro Banner (if not Pro) -->
     <div v-if="!settingsStore.isPro" class="pro-banner q-pa-md q-mb-md rounded-borders">
       <div class="text-body1 q-mb-sm">
-        <QIcon name="workspace_premium" size="24px" color="orange" class="q-mr-sm" />
+        <QIcon name="workspace_premium" size="24px" color="primary" class="q-mr-sm" />
         {{ $t('settings.receiptCustomization.upgradeToPro') }}
       </div>
       <div class="text-caption q-mb-md">
@@ -668,24 +668,27 @@ onMounted(async () => {
   width: 100%;
 }
 
+/* Pro offer speaks in the app's own palette; a gradient from another design
+   system is what made this block read as an ad pasted into the settings */
 .pro-banner {
-  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
-  border: 2px dashed #ff9800;
-  color: #333333;
+  background: var(--ct-caramel-soft);
+  border: 1px dashed var(--ct-caramel);
+  border-radius: var(--ct-r-md);
+  color: var(--ct-ink);
 }
 
 .pro-banner .text-body1,
 .pro-banner .text-caption {
-  color: #333333 !important;
+  color: var(--ct-ink) !important;
 }
 
 .logo-preview {
   position: relative;
   display: inline-block;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  border: 1px solid var(--ct-line);
+  border-radius: var(--ct-r-md);
   padding: 16px;
-  background: #f5f5f5;
+  background: var(--ct-sunken);
 }
 
 .preview-image {

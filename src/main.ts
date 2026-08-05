@@ -13,6 +13,9 @@ import '@quasar/extras/material-icons/material-icons.css'
 // Import Quasar css
 import 'quasar/dist/quasar.css'
 
+// Own visual system — loaded after Quasar so its tokens win
+import '@/assets/theme.css'
+
 async function bootstrap() {
   const app = createApp(App)
 

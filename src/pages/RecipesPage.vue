@@ -1,16 +1,18 @@
 <template>
-  <QPage padding :style="{ paddingBottom: adsStore.bannerHeight }">
-    <div class="q-pa-md">
+  <QPage :style="{ paddingBottom: adsStore.bannerHeight }">
+    <div class="ct-page">
       <!-- Page Header -->
-      <div class="row items-center justify-between q-mb-md">
-        <div class="text-h5">{{ $t('recipes.title') }}</div>
-        <QBtn
-          color="primary"
-          icon="add"
-          :label="$t('recipes.add')"
-          @click="showAddDialog = true"
-        />
-      </div>
+      <PageHeading :title="$t('recipes.title')">
+        <template #action>
+          <QBtn
+            unelevated
+            color="primary"
+            icon="add"
+            :label="$t('recipes.add')"
+            @click="showAddDialog = true"
+          />
+        </template>
+      </PageHeading>
 
       <!-- Recipes List -->
       <RecipeList
@@ -22,8 +24,8 @@
       <!-- Add/Edit Dialog -->
       <QDialog v-model="showAddDialog" maximized>
         <QCard>
-          <QToolbar class="bg-primary text-white">
-            <QToolbarTitle>
+          <QToolbar class="ct-header">
+            <QToolbarTitle class="ct-dialog-title">
               {{ editingRecipe ? $t('recipes.edit') : $t('recipes.add') }}
             </QToolbarTitle>
             <QBtn flat round dense icon="close" v-close-popup />
@@ -71,6 +73,7 @@ import { Capacitor } from '@capacitor/core'
 import { useRecipesStore } from '@/stores/recipes'
 import { useIngredientsStore } from '@/stores/ingredients'
 import { useAdsStore } from '@/stores/ads'
+import PageHeading from '@/components/common/PageHeading.vue'
 import RecipeList from '@/components/recipes/RecipeList.vue'
 import RecipeForm from '@/components/recipes/RecipeForm.vue'
 import OrderCalculator from '@/components/calculator/OrderCalculator.vue'

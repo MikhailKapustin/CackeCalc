@@ -1,69 +1,55 @@
 <template>
-  <QPage class="q-pa-md">
-    <div class="text-h5 q-mb-md">{{ $t('settings.title') }}</div>
+  <!-- Rendered inside the settings dialog, not as a routed page: a QPage here
+       would be a QPage without its QPageContainer -->
+  <div class="ct-settings">
+    <div class="ct-page">
+      <!-- Language -->
+      <section class="ct-section">
+        <div class="ct-label ct-section__label">{{ $t('settings.language') }}</div>
+        <div class="ct-card ct-card--pad">
+          <LanguageSwitcher />
+        </div>
+      </section>
 
-    <QList bordered separator class="rounded-borders">
-      <!-- Language Selection -->
-      <QItem>
-        <QItemSection>
-          <QItemLabel class="text-weight-medium">
-            {{ $t('settings.language') }}
-          </QItemLabel>
-          <div class="q-mt-sm">
-            <LanguageSwitcher />
-          </div>
-        </QItemSection>
-      </QItem>
+      <!-- Currency -->
+      <section class="ct-section">
+        <div class="ct-label ct-section__label">{{ $t('settings.currency') }}</div>
+        <div class="ct-card ct-card--pad">
+          <QSelect
+            v-model="settingsStore.currency"
+            :options="currencyOptions"
+            outlined
+            dense
+            emit-value
+            map-options
+            @update:model-value="changeCurrency"
+          />
+        </div>
+      </section>
 
-      <!-- Currency Selection -->
-      <QItem>
-        <QItemSection>
-          <QItemLabel class="text-weight-medium">
-            {{ $t('settings.currency') }}
-          </QItemLabel>
-          <div class="q-mt-sm">
-            <QSelect
-              v-model="settingsStore.currency"
-              :options="currencyOptions"
-              outlined
-              emit-value
-              map-options
-              @update:model-value="changeCurrency"
-            >
-              <template #prepend>
-                <QIcon name="attach_money" />
-              </template>
-            </QSelect>
-          </div>
-        </QItemSection>
-      </QItem>
+      <!-- Theme -->
+      <section class="ct-section">
+        <div class="ct-label ct-section__label">{{ $t('settings.theme') }}</div>
+        <div class="ct-card ct-card--pad">
+          <QBtnToggle
+            v-model="settingsStore.theme"
+            spread
+            unelevated
+            no-caps
+            toggle-color="primary"
+            color="white"
+            text-color="primary"
+            :options="themeOptions"
+            @update:model-value="changeTheme"
+          />
+        </div>
+      </section>
 
-      <!-- Theme Selection -->
-      <QItem>
-        <QItemSection>
-          <QItemLabel class="text-weight-medium">
-            {{ $t('settings.theme') }}
-          </QItemLabel>
-          <div class="q-mt-sm">
-            <QBtnToggle
-              v-model="settingsStore.theme"
-              spread
-              no-caps
-              toggle-color="primary"
-              :options="themeOptions"
-              @update:model-value="changeTheme"
-            />
-          </div>
-        </QItemSection>
-      </QItem>
-
-      <!-- Data Management Section -->
-      <QItem>
-        <QItemSection>
-          <QItemLabel class="text-weight-medium">
-            {{ $t('settings.dataManagement') }}
-          </QItemLabel>
-          <div class="q-mt-sm q-gutter-sm">
+      <!-- Data Management -->
+      <section class="ct-section">
+        <div class="ct-label ct-section__label">{{ $t('settings.dataManagement') }}</div>
+        <div class="ct-card ct-card--pad">
+          <div class="ct-actions">
             <QBtn
               color="primary"
               outline
@@ -83,24 +69,20 @@
               :loading="importLoading"
             />
           </div>
-          <QItemLabel caption class="q-mt-sm">
-            {{ $t('settings.dataManagementHint') }}
-          </QItemLabel>
-        </QItemSection>
-      </QItem>
+          <p class="ct-section__hint">{{ $t('settings.dataManagementHint') }}</p>
+        </div>
+      </section>
 
-      <!-- About Section -->
-      <QItem>
-        <QItemSection>
-          <QItemLabel class="text-weight-medium">
-            {{ $t('settings.about') }}
-          </QItemLabel>
-          <QItemLabel caption>
-            {{ $t('settings.version') }}: 1.0.0
-          </QItemLabel>
-        </QItemSection>
-      </QItem>
-    </QList>
+      <!-- About -->
+      <section class="ct-section">
+        <div class="ct-label ct-section__label">{{ $t('settings.about') }}</div>
+        <div class="ct-card ct-card--pad">
+          <div class="ct-row">
+            <span class="ct-row__key">{{ $t('settings.version') }}</span>
+            <span class="ct-row__val">{{ appVersion }}</span>
+          </div>
+        </div>
+      </section>
 
     <!-- Hidden file input for import -->
     <input
@@ -111,17 +93,17 @@
       @change="onFileSelected"
     />
 
-    <!-- Receipt Customization Section (Pro Feature) -->
-    <div class="q-mt-lg">
+      <!-- Receipt Customization Section (Pro Feature) -->
       <ReceiptCustomization />
     </div>
-  </QPage>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuasar } from 'quasar'
+import { Capacitor } from '@capacitor/core'
 import { useSettingsStore, type Currency, type ThemeMode } from '@/stores/settings'
 import { useAdsStore } from '@/stores/ads'
 import { applyTheme } from '@/utils/theme'
@@ -141,6 +123,21 @@ const $q = useQuasar()
 const exportLoading = ref(false)
 const importLoading = ref(false)
 const fileInput = ref<HTMLInputElement>()
+
+// Version comes from the installed package, not from a literal in the markup:
+// the hardcoded "1.0.0" had been wrong for sixteen releases
+const appVersion = ref('—')
+
+onMounted(async () => {
+  if (!Capacitor.isNativePlatform()) return
+  try {
+    const { App } = await import('@capacitor/app')
+    const info = await App.getInfo()
+    appVersion.value = `${info.version} (${info.build})`
+  } catch (error) {
+    console.warn('Could not read app version:', error)
+  }
+})
 
 const currencyOptions = computed(() => [
   { label: `₽ - ${t('currencies.ruble')}`, value: '₽' },
