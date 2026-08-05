@@ -43,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useI18n } from 'vue-i18n'
 import { useIngredientsStore } from '@/stores/ingredients'
@@ -61,18 +61,28 @@ const showAddDialog = ref(false)
 const editingIngredient = ref<Ingredient | undefined>(undefined)
 const highlightedIngredientId = ref<number | null>(null)
 
+// Retry timer for the first load, cleared on unmount so it cannot fire into a dead component
+let loadRetryTimer: ReturnType<typeof setTimeout> | null = null
+
 // Load ingredients on mount
 onMounted(async () => {
   try {
     await store.loadIngredients()
   } catch (error) {
-    // SQLite plugin can take up to ~5s to initialize on Android — retry silently
+    // SQLite plugin can take up to ~5s to initialize on Android — retry once silently
     console.warn('Failed to load ingredients on mount, retrying in 5s:', error)
-    setTimeout(async () => {
+    loadRetryTimer = setTimeout(async () => {
+      loadRetryTimer = null
       try {
         await store.loadIngredients()
       } catch (retryError) {
+        // Say it out loud: an empty list after a failed load looks exactly like an
+        // empty database, so staying silent reads as "my ingredients disappeared".
         console.error('Failed to load ingredients after retry:', retryError)
+        $q.notify({
+          type: 'negative',
+          message: t('common.error')
+        })
       }
     }, 5000)
   }
@@ -82,6 +92,13 @@ onMounted(async () => {
     await adsStore.showBanner()
   } catch (adError) {
     console.warn('Failed to show banner ad:', adError)
+  }
+})
+
+onUnmounted(() => {
+  if (loadRetryTimer) {
+    clearTimeout(loadRetryTimer)
+    loadRetryTimer = null
   }
 })
 
