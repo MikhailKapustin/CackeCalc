@@ -113,6 +113,7 @@
       "pleaseWait": "Bitte warten Sie, während wir Ihren Kauf verarbeiten...",
       "upgradeSuccess": "Erfolgreich auf PRO aktualisiert! Vielen Dank für Ihre Unterstützung!",
       "upgradeCancelled": "Kauf abgebrochen",
+      "upgradePending": "Die Zahlung wird verarbeitet. PRO wird freigeschaltet, sobald sie abgeschlossen ist.",
       "upgradeError": "Fehler beim Verarbeiten des Kaufs. Bitte versuchen Sie es erneut.",
       "noPackagesAvailable": "Keine Kaufpakete verfügbar. Bitte versuchen Sie es später erneut.",
       "webNotSupported": "Käufe sind in der Web-Version nicht verfügbar. Bitte verwenden Sie die mobile App.",

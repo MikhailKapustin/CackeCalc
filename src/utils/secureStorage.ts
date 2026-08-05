@@ -5,7 +5,12 @@ import { Capacitor } from '@capacitor/core'
 const PRO_STATUS_KEY = 'cakecalc_pro_status'
 const PRO_PRODUCT_ID = 'cakecalc_pro'
 
-export interface ProStatus {
+/**
+ * Declared as a type alias rather than an interface on purpose: the plugin takes
+ * DataType, which admits Record<string, unknown>, and an interface carries no
+ * implicit index signature — so set(key, status) would not typecheck.
+ */
+export type ProStatus = {
   isPro: boolean
   purchaseDate?: string
   productId?: string

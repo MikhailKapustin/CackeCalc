@@ -113,6 +113,7 @@
       "pleaseWait": "Please wait while we process your purchase...",
       "upgradeSuccess": "Successfully upgraded to PRO! Thank you for your support!",
       "upgradeCancelled": "Purchase cancelled",
+      "upgradePending": "Payment is being processed. PRO will unlock as soon as it goes through.",
       "upgradeError": "Failed to process purchase. Please try again.",
       "noPackagesAvailable": "No purchase packages available. Please try again later.",
       "webNotSupported": "Purchases are not available in web version. Please use mobile app.",

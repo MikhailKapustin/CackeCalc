@@ -2,7 +2,21 @@
 import { Capacitor } from '@capacitor/core'
 import { handlePurchaseSuccess } from './secureStorage'
 
-const PRO_PRODUCT_ID = 'cakecalc_pro'
+export const PRO_PRODUCT_ID = 'cakecalc_pro'
+
+/**
+ * Outcome of a purchase attempt.
+ *
+ * A cancelled dialog and a deferred payment are normal states, not failures.
+ * Returning a single boolean forced the UI to treat both as "something went
+ * wrong", so the caller gets the actual outcome instead.
+ */
+export type PurchaseOutcome =
+  | 'purchased'     // entitlement confirmed and Pro stored
+  | 'cancelled'     // user dismissed the store dialog
+  | 'pending'       // deferred payment — Pro arrives once the payment clears
+  | 'unconfirmed'   // store reports ownership, RevenueCat has no entitlement for it
+  | 'unavailable'   // not running on a device
 
 /**
  * API key for the given platform.
@@ -13,6 +27,20 @@ function apiKeyFor(platform: string): string {
   return platform === 'ios'
     ? import.meta.env.VITE_REVENUECAT_API_KEY_IOS || 'YOUR_IOS_API_KEY'
     : import.meta.env.VITE_REVENUECAT_API_KEY_ANDROID || 'YOUR_ANDROID_API_KEY'
+}
+
+/**
+ * Error codes as the SDK actually reports them.
+ *
+ * PURCHASES_ERROR_CODE holds *strings* — "1", "6", "20" — see
+ * node_modules/@revenuecat/purchases-typescript-internal-esm/dist/errors.d.ts.
+ * Comparing against invented names ('USER_CANCELLED') never matches and turns
+ * an ordinary cancellation into an error toast, which is exactly what happened
+ * here before. Always take the constants from the SDK, never retype them.
+ */
+async function errorCodes() {
+  const { PURCHASES_ERROR_CODE } = await import('@revenuecat/purchases-capacitor')
+  return PURCHASES_ERROR_CODE
 }
 
 /**
@@ -68,15 +96,15 @@ async function confirmProOwnership(): Promise<boolean> {
 }
 
 /**
- * Purchase Pro version
- * Returns true if purchase was successful
+ * Purchase Pro version.
+ * Returns what actually happened — see PurchaseOutcome.
  */
-export async function purchasePro(): Promise<boolean> {
+export async function purchasePro(): Promise<PurchaseOutcome> {
   console.log('🔔 RevenueCat: purchasePro() called')
 
   if (!Capacitor.isNativePlatform()) {
     console.warn('⚠️ RevenueCat: Purchases not available on web')
-    return false
+    return 'unavailable'
   }
 
   try {
@@ -87,7 +115,6 @@ export async function purchasePro(): Promise<boolean> {
     console.log('🔔 RevenueCat: Getting offerings...')
     const offerings = await Purchases.getOfferings()
 
-    console.log('🔔 RevenueCat: Offerings received:', offerings)
     console.log('🔔 RevenueCat: Current offering:', offerings.current)
 
     if (!offerings.current || !offerings.current.availablePackages.length) {
@@ -95,7 +122,6 @@ export async function purchasePro(): Promise<boolean> {
       throw new Error('No packages available')
     }
 
-    console.log('🔔 RevenueCat: Available packages:', offerings.current.availablePackages.length)
     console.log('🔔 RevenueCat: Package identifiers:', offerings.current.availablePackages.map(pkg => pkg.product.identifier))
 
     // Find Pro product package
@@ -108,29 +134,20 @@ export async function purchasePro(): Promise<boolean> {
       throw new Error('Pro package not found')
     }
 
-    console.log('🔔 RevenueCat: Pro package found:', proPackage)
     console.log('🔔 RevenueCat: Initiating purchase...')
 
     // Make purchase
     const purchaseResult = await Purchases.purchasePackage({ aPackage: proPackage })
-
-    console.log('🔔 RevenueCat: Purchase completed, result:', JSON.stringify(purchaseResult))
 
     const customerInfo = purchaseResult?.customerInfo
 
     console.log('🔔 RevenueCat: Active entitlements:', Object.keys(customerInfo?.entitlements?.active ?? {}))
 
     // Check if user now has Pro entitlement
-    const hasPro = customerInfo?.entitlements?.active?.[PRO_PRODUCT_ID] !== undefined
-
-    console.log('🔔 RevenueCat: Has Pro entitlement:', hasPro)
-
-    if (hasPro) {
-      // Save Pro status to secure storage
-      console.log('🔔 RevenueCat: Saving Pro status to secure storage...')
+    if (customerInfo?.entitlements?.active?.[PRO_PRODUCT_ID] !== undefined) {
       await handlePurchaseSuccess(PRO_PRODUCT_ID)
       console.log('✅ RevenueCat: Purchase successful')
-      return true
+      return 'purchased'
     }
 
     // Purchase returned without the entitlement. Do NOT grant Pro on assumption —
@@ -140,45 +157,56 @@ export async function purchasePro(): Promise<boolean> {
     if (await confirmProOwnership()) {
       await handlePurchaseSuccess(PRO_PRODUCT_ID)
       console.log('✅ RevenueCat: Pro confirmed on re-check')
-      return true
+      return 'purchased'
     }
 
     console.error('❌ RevenueCat: Pro entitlement not confirmed after purchase — not granting Pro')
-    return false
+    return 'unconfirmed'
   } catch (error: any) {
-    // User cancelled purchase
-    if (error.code === 'USER_CANCELLED') {
+    const codes = await errorCodes()
+    const code = String(error?.code ?? '')
+
+    // User dismissed the store dialog — nothing failed
+    if (code === codes.PURCHASE_CANCELLED_ERROR) {
       console.log('ℹ️ RevenueCat: Purchase cancelled by user')
-      return false
+      return 'cancelled'
+    }
+
+    // Deferred payment (cash, bank transfer, slow test card). The transaction is
+    // real but not complete: Pro must not be granted now, and this is not an error.
+    if (code === codes.PAYMENT_PENDING_ERROR) {
+      console.log('ℹ️ RevenueCat: Payment is pending, Pro will follow once it clears')
+      return 'pending'
     }
 
     // Product already owned in the store — restore instead of buying again
-    if (error.code === '6' || error.code === 'PRODUCT_ALREADY_PURCHASED_ERROR') {
+    if (code === codes.PRODUCT_ALREADY_PURCHASED_ERROR) {
       console.log('ℹ️ RevenueCat: Product already purchased, restoring...')
       try {
         const { Purchases: P } = await import('@revenuecat/purchases-capacitor')
         const { customerInfo } = await P.restorePurchases()
-        const hasPro = customerInfo?.entitlements?.active?.[PRO_PRODUCT_ID] !== undefined
-        if (hasPro) {
+        if (customerInfo?.entitlements?.active?.[PRO_PRODUCT_ID] !== undefined) {
           await handlePurchaseSuccess(PRO_PRODUCT_ID)
           console.log('✅ RevenueCat: Pro restored after already-purchased error')
-          return true
+          return 'purchased'
         }
         // The store says "already purchased" but RevenueCat has no entitlement for it.
-        // That is a configuration mismatch, not a paid user — surface it instead of
-        // silently handing out Pro.
+        // That is a configuration mismatch or an unconsumed stale purchase, not a paid
+        // user — surface it instead of silently handing out Pro.
         console.error('❌ RevenueCat: Store reports product owned, but no Pro entitlement after restore')
-        return false
+        return 'unconfirmed'
       } catch (restoreError: any) {
-        // PaymentPendingError: payment is not complete (e.g. refunded during testing)
-        console.warn('⚠️ RevenueCat: Restore failed after already-purchased error:', restoreError.message)
-        return false
+        if (String(restoreError?.code ?? '') === codes.PAYMENT_PENDING_ERROR) {
+          console.log('ℹ️ RevenueCat: Owned product has a pending payment')
+          return 'pending'
+        }
+        console.warn('⚠️ RevenueCat: Restore failed after already-purchased error:', restoreError?.message)
+        return 'unconfirmed'
       }
     }
 
     console.error('❌ RevenueCat: Purchase failed:', error)
-    console.error('❌ RevenueCat: Error code:', error.code)
-    console.error('❌ RevenueCat: Error message:', error.message)
+    console.error('❌ RevenueCat: Error code:', error?.code)
     throw error
   }
 }

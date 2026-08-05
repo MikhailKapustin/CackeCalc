@@ -549,11 +549,11 @@ async function handleUpgrade() {
 
     try {
       // Attempt purchase
-      const success = await purchasePro()
+      const outcome = await purchasePro()
 
       loadingDialog.hide()
 
-      if (success) {
+      if (outcome === 'purchased') {
         // Update store
         settingsStore.isPro = true
 
@@ -572,12 +572,34 @@ async function handleUpgrade() {
 
         // Reload settings to enable Pro features
         await receiptStore.loadSettings()
-      } else {
-        // User cancelled or purchase failed
+      } else if (outcome === 'cancelled') {
+        // Dismissed the store dialog — not a failure, so do not report one
         $q.notify({
           type: 'info',
           message: t('settings.receiptCustomization.upgradeCancelled'),
           icon: 'info'
+        })
+      } else if (outcome === 'pending') {
+        // Deferred payment: the transaction is real but not settled, Pro follows later
+        $q.notify({
+          type: 'info',
+          message: t('settings.receiptCustomization.upgradePending'),
+          icon: 'schedule',
+          timeout: 6000
+        })
+      } else if (outcome === 'unavailable') {
+        $q.notify({
+          type: 'negative',
+          message: t('settings.receiptCustomization.webNotSupported'),
+          icon: 'error'
+        })
+      } else {
+        // 'unconfirmed' — store claims ownership while RevenueCat grants no entitlement
+        $q.notify({
+          type: 'negative',
+          message: t('settings.receiptCustomization.upgradeError'),
+          icon: 'error',
+          timeout: 5000
         })
       }
     } catch (error: any) {

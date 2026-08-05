@@ -113,6 +113,7 @@
       "pleaseWait": "Por favor espera mientras procesamos tu compra...",
       "upgradeSuccess": "¡Actualizado a PRO exitosamente! ¡Gracias por tu apoyo!",
       "upgradeCancelled": "Compra cancelada",
+      "upgradePending": "El pago se está procesando. PRO se activará en cuanto se complete.",
       "upgradeError": "Error al procesar la compra. Por favor intenta de nuevo.",
       "noPackagesAvailable": "No hay paquetes de compra disponibles. Por favor intenta más tarde.",
       "webNotSupported": "Las compras no están disponibles en la versión web. Por favor usa la aplicación móvil.",
