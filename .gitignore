@@ -69,3 +69,7 @@ Thumbs.db
 # Ad-hoc screenshots dropped in the project root while debugging
 /img.png
 /img_*.png
+
+# Release artifacts that build-release.sh copies to the project root
+/CakeCost-release.aab
+/CakeCost-release.apk
