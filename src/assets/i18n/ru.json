@@ -140,7 +140,15 @@
     "importInvalidFile": "Неверный формат файла",
     "upgradeRequired": "Требуется обновление",
     "importLimitExceeded": "Эта резервная копия превышает лимиты бесплатной версии",
-    "upgradeToPro": "Обновиться до PRO"
+    "upgradeToPro": "Обновиться до PRO",
+    "purchases": "Покупки",
+    "proStatus": "Ваш тариф",
+    "proActive": "PRO",
+    "proFree": "Бесплатный",
+    "restorePurchasesHint": "Уже покупали PRO? Верните доступ после переустановки приложения или на новом телефоне.",
+    "restoreSuccess": "PRO восстановлен. Спасибо за поддержку!",
+    "restoreNothing": "На этом аккаунте Google покупок не найдено.",
+    "restoreError": "Не удалось связаться с магазином. Проверьте соединение и попробуйте ещё раз."
   },
   "currencies": {
     "ruble": "Российский рубль",

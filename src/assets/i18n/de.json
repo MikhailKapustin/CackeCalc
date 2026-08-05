@@ -140,7 +140,15 @@
     "importInvalidFile": "Ungültiges Dateiformat",
     "upgradeRequired": "Upgrade erforderlich",
     "importLimitExceeded": "Dieses Backup überschreitet die Grenzen der kostenlosen Version",
-    "upgradeToPro": "Auf PRO upgraden"
+    "upgradeToPro": "Auf PRO upgraden",
+    "purchases": "Käufe",
+    "proStatus": "Dein Tarif",
+    "proActive": "PRO",
+    "proFree": "Kostenlos",
+    "restorePurchasesHint": "PRO schon gekauft? Nach einer Neuinstallation oder auf einem neuen Handy zurückholen.",
+    "restoreSuccess": "PRO wiederhergestellt. Danke für deine Unterstützung!",
+    "restoreNothing": "Für dieses Google-Konto wurden keine Käufe gefunden.",
+    "restoreError": "Der Store war nicht erreichbar. Prüfe deine Verbindung und versuche es erneut."
   },
   "currencies": {
     "ruble": "Russischer Rubel",

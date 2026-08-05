@@ -73,6 +73,32 @@
         </div>
       </section>
 
+      <!-- Purchases: Google Play requires a way to restore a one-time purchase,
+           and without it a reinstall silently loses paid Pro -->
+      <section class="ct-section">
+        <div class="ct-label ct-section__label">{{ $t('settings.purchases') }}</div>
+        <div class="ct-card ct-card--pad">
+          <div class="ct-row q-mb-sm">
+            <span class="ct-row__key">{{ $t('settings.proStatus') }}</span>
+            <span class="ct-stamp" :class="{ 'ct-stamp--profit': settingsStore.isPro }">
+              {{ settingsStore.isPro ? $t('settings.proActive') : $t('settings.proFree') }}
+            </span>
+          </div>
+
+          <QBtn
+            color="primary"
+            outline
+            no-caps
+            icon="restore"
+            :label="$t('settings.restorePurchases')"
+            :loading="restoreLoading"
+            data-test="restore-purchases"
+            @click="handleRestorePurchases"
+          />
+          <p class="ct-section__hint">{{ $t('settings.restorePurchasesHint') }}</p>
+        </div>
+      </section>
+
       <!-- About -->
       <section class="ct-section">
         <div class="ct-label ct-section__label">{{ $t('settings.about') }}</div>
@@ -123,6 +149,49 @@ const $q = useQuasar()
 const exportLoading = ref(false)
 const importLoading = ref(false)
 const fileInput = ref<HTMLInputElement>()
+
+// Restoring a purchase
+const restoreLoading = ref(false)
+
+/**
+ * Bring back a Pro purchase made earlier — after a reinstall, a new phone, or
+ * simply cleared data. Google Play requires this to be reachable from the UI for
+ * a non-consumable product, and without it paid users have no way back.
+ */
+async function handleRestorePurchases() {
+  restoreLoading.value = true
+  try {
+    const { restorePurchases } = await import('@/utils/purchases')
+    const restored = await restorePurchases()
+
+    if (restored) {
+      settingsStore.isPro = true
+      await adsStore.handleProUpgrade()
+      $q.notify({
+        type: 'positive',
+        message: t('settings.restoreSuccess'),
+        icon: 'check_circle'
+      })
+      return
+    }
+
+    // Nothing to restore is a normal answer, not a failure
+    $q.notify({
+      type: 'info',
+      message: t('settings.restoreNothing'),
+      icon: 'info'
+    })
+  } catch (error) {
+    console.error('Failed to restore purchases:', error)
+    $q.notify({
+      type: 'negative',
+      message: t('settings.restoreError'),
+      icon: 'error'
+    })
+  } finally {
+    restoreLoading.value = false
+  }
+}
 
 // Version comes from the installed package, never from a literal in the markup:
 // the hardcoded "1.0.0" had been wrong for sixteen releases. The build-time value

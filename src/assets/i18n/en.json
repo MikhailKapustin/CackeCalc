@@ -83,7 +83,7 @@
     "version": "Version",
     "pro": "Pro Version",
     "purchasePro": "Purchase Pro",
-    "restorePurchases": "Restore Purchases",
+    "restorePurchases": "Restore purchases",
     "receiptCustomization": {
       "title": "Receipt Customization",
       "description": "Personalize receipt design for your clients",
@@ -140,7 +140,15 @@
     "importInvalidFile": "Invalid file format",
     "upgradeRequired": "Upgrade Required",
     "importLimitExceeded": "This backup exceeds free version limits",
-    "upgradeToPro": "Upgrade to PRO"
+    "upgradeToPro": "Upgrade to PRO",
+    "purchases": "Purchases",
+    "proStatus": "Your plan",
+    "proActive": "PRO",
+    "proFree": "Free",
+    "restorePurchasesHint": "Already bought PRO? Restore it after reinstalling the app or moving to a new phone.",
+    "restoreSuccess": "PRO restored. Thank you for your support!",
+    "restoreNothing": "No purchases found on this Google account.",
+    "restoreError": "Could not reach the store. Check your connection and try again."
   },
   "currencies": {
     "ruble": "Russian Ruble",

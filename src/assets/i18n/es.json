@@ -83,7 +83,7 @@
     "version": "Versión",
     "pro": "Versión Pro",
     "purchasePro": "Comprar Pro",
-    "restorePurchases": "Restaurar Compras",
+    "restorePurchases": "Restaurar compras",
     "receiptCustomization": {
       "title": "Personalización del Recibo",
       "description": "Personaliza el diseño del recibo para tus clientes",
@@ -140,7 +140,15 @@
     "importInvalidFile": "Formato de archivo inválido",
     "upgradeRequired": "Actualización Requerida",
     "importLimitExceeded": "Esta copia de seguridad excede los límites de la versión gratuita",
-    "upgradeToPro": "Actualizar a PRO"
+    "upgradeToPro": "Actualizar a PRO",
+    "purchases": "Compras",
+    "proStatus": "Tu plan",
+    "proActive": "PRO",
+    "proFree": "Gratis",
+    "restorePurchasesHint": "¿Ya compraste PRO? Recupéralo tras reinstalar la app o al cambiar de teléfono.",
+    "restoreSuccess": "PRO restaurado. ¡Gracias por tu apoyo!",
+    "restoreNothing": "No se encontraron compras en esta cuenta de Google.",
+    "restoreError": "No se pudo conectar con la tienda. Revisa tu conexión e inténtalo de nuevo."
   },
   "currencies": {
     "ruble": "Rublo ruso",
