@@ -110,7 +110,14 @@ export function getDefaultRASPConfig(): RASPConfig {
   return {
     androidConfig: {
       packageName: 'com.gliderk.cakecalc',
-      certificateHashes: ['YOUR_CERTIFICATE_HASH'], // TODO: Replace with actual hash
+      // SHA-256 подписей в base64. Первый — сертификат Play App Signing: именно им
+      // подписана сборка, которую получает пользователь, поэтому сверять нужно с
+      // ним, а не с upload-ключом. Второй — upload-ключ, чтобы собранный локально
+      // релиз не выглядел подделкой при отладке на устройстве.
+      certificateHashes: [
+        'tzfFTGMSmT+CtcKxdB0KPZaxYxCJhiuizChk64hN06Y=',
+        'Hy3dyDXy3CtV9FmJtgBuf3yy5P3iTn0uXGxpsUywmWY='
+      ],
       supportedAlternativeStores: [
         'com.sec.android.app.samsungapps', // Samsung Galaxy Store
         'com.amazon.venezia' // Amazon Appstore
