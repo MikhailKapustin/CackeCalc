@@ -17,7 +17,9 @@
     "deleteConfirm": "Вы уверены, что хотите удалить этот ингредиент?",
     "purchasePrice": "Цена покупки",
     "purchaseAmount": "Количество в упаковке",
-    "purchaseUnit": "Единица покупки"
+    "purchaseUnit": "Единица покупки",
+    "emptyHint": "Добавьте то, что покупаете, — муку, сливки, коробки. Приложение посчитает цену за грамм и пересчитает рецепты, когда цены изменятся.",
+    "perAmount": "за {amount} {unit}"
   },
   "recipes": {
     "title": "Рецепты",
@@ -43,7 +45,12 @@
     "removeIngredient": "Удалить ингредиент",
     "calculateOrder": "Посчитать заказ",
     "totalCost": "Общая себестоимость",
-    "yourMargin": "Ваша наценка {percent}% ({amount} с {unit})"
+    "yourMargin": "Ваша наценка {percent}% ({amount} с {unit})",
+    "emptyHint": "Добавьте то, что продаёте. По каждому рецепту будет видно себестоимость, вашу цену и что остаётся.",
+    "costBreakdown": {
+      "other": "Прочее",
+      "title": "Из чего складывается"
+    }
   },
   "calculator": {
     "title": "Калькулятор заказа",
@@ -56,7 +63,10 @@
     "pricePerUnit": "Цена за {unit}",
     "receiptTitle": "🍰 Ваш расчет заказа",
     "item": "Торт",
-    "receiptFooter": "Посчитано в приложении CakeCost"
+    "receiptFooter": "Посчитано в приложении CakeCost",
+    "enterAmount": "Укажите количество",
+    "amountPositive": "Количество должно быть больше нуля",
+    "receiptPreview": "Предпросмотр чека"
   },
   "settings": {
     "title": "Настройки",

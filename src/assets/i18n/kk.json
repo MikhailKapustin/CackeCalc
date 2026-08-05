@@ -17,7 +17,9 @@
     "deleteConfirm": "Бұл ингредиентті жойғыңыз келетініне сенімдісіз бе?",
     "purchasePrice": "Сатып алу бағасы",
     "purchaseAmount": "Қаптамадағы саны",
-    "purchaseUnit": "Сатып алу бірлігі"
+    "purchaseUnit": "Сатып алу бірлігі",
+    "emptyHint": "Сатып алатыныңызды қосыңыз — ұн, кілегей, қорап. Қосымша граммына бағаны есептеп, бағалар өзгергенде рецепттерді жаңартады.",
+    "perAmount": "{amount} {unit} үшін"
   },
   "recipes": {
     "title": "Рецепттер",
@@ -43,7 +45,12 @@
     "removeIngredient": "Ингредиентті жою",
     "calculateOrder": "Тапсырысты есептеу",
     "totalCost": "Жалпы өзіндік құны",
-    "yourMargin": "Сіздің үстемеңіз {percent}% ({unit} үшін {amount})"
+    "yourMargin": "Сіздің үстемеңіз {percent}% ({unit} үшін {amount})",
+    "emptyHint": "Сататыныңызды қосыңыз. Әр рецептте өзіндік құны, бағаңыз және қалатын пайда көрінеді.",
+    "costBreakdown": {
+      "other": "Басқасы",
+      "title": "Неден құралады"
+    }
   },
   "calculator": {
     "title": "Тапсырыс калькуляторы",
@@ -56,7 +63,10 @@
     "pricePerUnit": "{unit} үшін баға",
     "receiptTitle": "🍰 Сіздің тапсырыс есебі",
     "item": "Торт",
-    "receiptFooter": "CakeCost қосымшасында есептелген"
+    "receiptFooter": "CakeCost қосымшасында есептелген",
+    "enterAmount": "Мөлшерін көрсетіңіз",
+    "amountPositive": "Мөлшері нөлден үлкен болуы керек",
+    "receiptPreview": "Чекті алдын ала қарау"
   },
   "settings": {
     "title": "Баптаулар",

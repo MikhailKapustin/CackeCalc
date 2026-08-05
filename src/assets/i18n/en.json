@@ -17,7 +17,9 @@
     "deleteConfirm": "Are you sure you want to delete this ingredient?",
     "purchasePrice": "Purchase Price",
     "purchaseAmount": "Package Amount",
-    "purchaseUnit": "Purchase Unit"
+    "purchaseUnit": "Purchase Unit",
+    "emptyHint": "Add what you buy — flour, cream, boxes. The app works out the price per gram and keeps every recipe up to date when prices change.",
+    "perAmount": "for {amount} {unit}"
   },
   "recipes": {
     "title": "Recipes",
@@ -43,7 +45,12 @@
     "removeIngredient": "Remove ingredient",
     "calculateOrder": "Calculate Order",
     "totalCost": "Total Cost",
-    "yourMargin": "Your markup {percent}% ({amount} per {unit})"
+    "yourMargin": "Your markup {percent}% ({amount} per {unit})",
+    "emptyHint": "Add what you sell. Each recipe shows its cost, your price and what is left over.",
+    "costBreakdown": {
+      "other": "Other",
+      "title": "Where the cost goes"
+    }
   },
   "calculator": {
     "title": "Order Calculator",
@@ -56,7 +63,10 @@
     "pricePerUnit": "Price per {unit}",
     "receiptTitle": "🍰 Your Order Estimate",
     "item": "Item",
-    "receiptFooter": "Calculated via CakeCost app"
+    "receiptFooter": "Calculated via CakeCost app",
+    "enterAmount": "Enter an amount",
+    "amountPositive": "Amount must be greater than zero",
+    "receiptPreview": "Receipt preview"
   },
   "settings": {
     "title": "Settings",

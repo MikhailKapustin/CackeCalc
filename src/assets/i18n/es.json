@@ -17,7 +17,9 @@
     "deleteConfirm": "¿Estás seguro de que quieres eliminar este ingrediente?",
     "purchasePrice": "Precio de Compra",
     "purchaseAmount": "Cantidad del Paquete",
-    "purchaseUnit": "Unidad de Compra"
+    "purchaseUnit": "Unidad de Compra",
+    "emptyHint": "Añade lo que compras: harina, nata, cajas. La app calcula el precio por gramo y actualiza tus recetas cuando cambian los precios.",
+    "perAmount": "por {amount} {unit}"
   },
   "recipes": {
     "title": "Recetas",
@@ -43,7 +45,12 @@
     "removeIngredient": "Eliminar ingrediente",
     "calculateOrder": "Calcular Pedido",
     "totalCost": "Costo Total",
-    "yourMargin": "Tu margen {percent}% ({amount} por {unit})"
+    "yourMargin": "Tu margen {percent}% ({amount} por {unit})",
+    "emptyHint": "Añade lo que vendes. Cada receta muestra su coste, tu precio y lo que queda.",
+    "costBreakdown": {
+      "other": "Otros",
+      "title": "De qué se compone"
+    }
   },
   "calculator": {
     "title": "Calculadora de Pedidos",
@@ -56,7 +63,10 @@
     "pricePerUnit": "Precio por {unit}",
     "receiptTitle": "🍰 Presupuesto de tu Pedido",
     "item": "Artículo",
-    "receiptFooter": "Calculado con la app CakeCost"
+    "receiptFooter": "Calculado con la app CakeCost",
+    "enterAmount": "Indica una cantidad",
+    "amountPositive": "La cantidad debe ser mayor que cero",
+    "receiptPreview": "Vista previa del recibo"
   },
   "settings": {
     "title": "Configuración",

@@ -11,14 +11,14 @@
       class="q-mb-md"
     >
       <template #prepend>
-        <QIcon name="search" />
+        <QIcon name="search" size="20px" />
       </template>
     </QInput>
 
     <!-- Results count when searching -->
     <div
       v-if="store.searchQuery && store.filteredIngredients.length > 0"
-      class="text-caption text-grey-7 q-mb-sm"
+      class="ct-label q-mb-sm"
       data-test="results-count"
     >
       {{ $t('ingredients.resultsCount', { count: store.filteredIngredients.length }) }}
@@ -28,68 +28,82 @@
     <div
       v-if="store.ingredients.length === 0"
       data-test="empty-state"
-      class="text-center q-pa-lg text-grey-6"
+      class="ct-empty"
     >
-      <QIcon name="inbox" size="64px" class="q-mb-md" />
-      <div class="text-h6">{{ $t('ingredients.empty') }}</div>
+      <div class="ct-empty__title">{{ $t('ingredients.empty') }}</div>
+      <div class="ct-empty__hint">{{ $t('ingredients.emptyHint') }}</div>
     </div>
 
     <!-- No results state -->
     <div
       v-else-if="store.searchQuery && store.filteredIngredients.length === 0"
       data-test="no-results"
-      class="text-center q-pa-lg text-grey-6"
+      class="ct-empty"
     >
-      <QIcon name="search_off" size="48px" class="q-mb-md" />
-      <div class="text-subtitle1">{{ $t('ingredients.noResults', { query: store.searchQuery }) }}</div>
+      <div class="ct-empty__title">{{ $t('ingredients.noResults', { query: store.searchQuery }) }}</div>
     </div>
 
-    <!-- Ingredients list -->
-    <QList v-else bordered separator>
-      <QItem
-        v-for="ingredient in store.filteredIngredients"
+    <!-- Ingredients list: what was bought on the left, the unit price that
+         actually feeds every recipe on the right -->
+    <div v-else class="ct-card">
+      <div
+        v-for="(ingredient, index) in store.filteredIngredients"
         :key="ingredient.id"
-        :class="{ 'highlighted-ingredient': ingredient.id === props.highlightedId }"
+        class="ct-item"
+        :class="{
+          'ct-item--divided': index > 0,
+          'ct-item--highlighted': ingredient.id === props.highlightedId
+        }"
         data-test="ingredient-item"
       >
-        <QItemSection>
-          <QItemLabel>
+        <div class="ct-item__main">
+          <div class="ct-item__name">
             <span v-html="highlightSearchTerm(ingredient.name)" />
-          </QItemLabel>
-          <QItemLabel caption>
-            {{ formatPrice(ingredient.purchasePrice) }} {{ settingsStore.currency }} за {{ ingredient.purchaseAmount }} {{ getUnitLabel(ingredient.purchaseUnit) }}
-            • {{ formatPrice(ingredient.pricePerBaseUnit) }} {{ settingsStore.currency }}/{{ getBaseUnitLabel(ingredient.type) }}
-          </QItemLabel>
-        </QItemSection>
-
-        <QItemSection side>
-          <div class="row q-gutter-xs">
-            <QBtn
-              flat
-              round
-              dense
-              icon="edit"
-              color="primary"
-              data-test="edit-button"
-              @click="$emit('edit', ingredient.id)"
-            >
-              <QTooltip>{{ $t('common.edit') }}</QTooltip>
-            </QBtn>
-            <QBtn
-              flat
-              round
-              dense
-              icon="delete"
-              color="negative"
-              data-test="delete-button"
-              @click="confirmDelete(ingredient)"
-            >
-              <QTooltip>{{ $t('common.delete') }}</QTooltip>
-            </QBtn>
           </div>
-        </QItemSection>
-      </QItem>
-    </QList>
+          <div class="ct-item__purchase">
+            <span class="ct-num">{{ formatPrice(ingredient.purchasePrice) }}</span>
+            {{ settingsStore.currency }}
+            {{ $t('ingredients.perAmount', {
+              amount: formatPrice(ingredient.purchaseAmount),
+              unit: getUnitLabel(ingredient.purchaseUnit)
+            }) }}
+          </div>
+        </div>
+
+        <div class="ct-item__rate">
+          <div class="ct-item__rate-value ct-num">{{ formatPrice(ingredient.pricePerBaseUnit) }}</div>
+          <div class="ct-item__rate-unit">
+            {{ settingsStore.currency }}/{{ getBaseUnitLabel(ingredient.type) }}
+          </div>
+        </div>
+
+        <div class="ct-item__actions">
+          <QBtn
+            flat
+            round
+            dense
+            size="sm"
+            icon="edit"
+            data-test="edit-button"
+            @click="$emit('edit', ingredient.id)"
+          >
+            <QTooltip>{{ $t('common.edit') }}</QTooltip>
+          </QBtn>
+          <QBtn
+            flat
+            round
+            dense
+            size="sm"
+            icon="delete"
+            color="negative"
+            data-test="delete-button"
+            @click="confirmDelete(ingredient)"
+          >
+            <QTooltip>{{ $t('common.delete') }}</QTooltip>
+          </QBtn>
+        </div>
+      </div>
+    </div>
 
     <!-- Delete confirmation dialog -->
     <QDialog v-model="showDeleteDialog">
@@ -124,7 +138,7 @@ import { useIngredientsStore } from '@/stores/ingredients'
 import { useSettingsStore } from '@/stores/settings'
 import type { Ingredient, PurchaseUnit, MeasurementType } from '@/types/ingredient'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 interface Props {
   highlightedId?: number | null
@@ -160,11 +174,11 @@ async function handleDelete() {
 
 // Formatting helpers
 function formatPrice(price: number): string {
-  const formatted = new Intl.NumberFormat('ru-RU', {
+  const formatted = new Intl.NumberFormat(locale.value, {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2
   }).format(price)
-  return formatted.replace(/\u00A0/g, ' ')
+  return formatted.replace(/[\u00a0\u202f]/g, ' ')
 }
 
 function getUnitLabel(unit: PurchaseUnit): string {
@@ -185,35 +199,106 @@ function getBaseUnitLabel(type: MeasurementType): string {
   return t('units.pcs')
 }
 
+// Ingredient names are user input and also arrive from imported files, so they
+// are escaped before the <mark> wrapper goes through v-html
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 // Highlight search term in name
 function highlightSearchTerm(name: string): string {
-  if (!store.searchQuery) return name
+  const safeName = escapeHtml(name)
+  if (!store.searchQuery) return safeName
 
-  const regex = new RegExp(`(${store.searchQuery})`, 'gi')
-  return name.replace(regex, '<mark>$1</mark>')
+  const regex = new RegExp(`(${escapeRegExp(escapeHtml(store.searchQuery))})`, 'gi')
+  return safeName.replace(regex, '<mark>$1</mark>')
 }
 </script>
 
 <style scoped>
-mark {
-  background-color: #ffeb3b;
+.ct-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+}
+
+.ct-item--divided {
+  border-top: 1px solid var(--ct-line);
+}
+
+.ct-item__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.ct-item__name {
+  font-family: var(--ct-font-display);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--ct-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ct-item__purchase {
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--ct-ink-soft);
+}
+
+/* The unit price is what every recipe multiplies, so it reads as the value */
+.ct-item__rate {
+  text-align: right;
+  flex: none;
+}
+
+.ct-item__rate-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ct-ink);
+  line-height: 1.2;
+}
+
+.ct-item__rate-unit {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ct-ink-faint);
+}
+
+.ct-item__actions {
+  display: flex;
+  gap: 2px;
+  flex: none;
+  color: var(--ct-ink-faint);
+}
+
+.ct-item--highlighted {
+  animation: ct-highlight 2.2s ease-out;
+}
+
+@keyframes ct-highlight {
+  0% { background-color: var(--ct-caramel-soft); }
+  100% { background-color: transparent; }
+}
+
+:deep(mark) {
+  background-color: var(--ct-caramel-soft);
+  color: var(--ct-ink);
   padding: 0 2px;
-}
-
-.highlighted-ingredient {
-  background-color: #e3f2fd;
-  animation: highlight-fade 2s ease-in-out;
-}
-
-@keyframes highlight-fade {
-  0% {
-    background-color: #2196f3;
-  }
-  50% {
-    background-color: #64b5f6;
-  }
-  100% {
-    background-color: #e3f2fd;
-  }
+  border-radius: 2px;
 }
 </style>

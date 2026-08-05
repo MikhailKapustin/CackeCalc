@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { Quasar } from 'quasar'
 import OrderCalculator from '@/components/calculator/OrderCalculator.vue'
 import { useRecipesStore } from '@/stores/recipes'
+import { createTestI18n } from '../../helpers/i18n'
 
 describe('OrderCalculator', () => {
   let wrapper: any
@@ -32,7 +33,9 @@ describe('OrderCalculator', () => {
 
     wrapper = mount(OrderCalculator, {
       global: {
-        plugins: [Quasar]
+        // The calculator takes its labels from i18n now instead of carrying
+        // hardcoded Russian strings, so it is mounted the way the app mounts it
+        plugins: [Quasar, createTestI18n()]
       }
     })
   })
@@ -61,7 +64,12 @@ describe('OrderCalculator', () => {
 
     // Прибыль: (2000 - 500) × 2 = 3000₽
     expect(wrapper.find('[data-test="profit"]').text()).toContain('3 000')
-    expect(wrapper.find('[data-test="profit"]').classes()).toContain('text-caption')
+
+    // Прибыль — служебная цифра для кондитера, а не то, что показывают клиенту:
+    // проверяем это по существу (её нет в итоговой сумме заказа), а не по классу
+    // оформления, который меняется при любой правке вёрстки
+    expect(wrapper.find('[data-test="total-price"]').text()).not.toContain('3 000')
+    expect(wrapper.find('[data-test="profit"]').classes()).not.toContain('ct-num-hero')
   })
 
   it('should show share button when total is calculated', async () => {

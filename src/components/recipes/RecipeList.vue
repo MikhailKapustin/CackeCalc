@@ -11,14 +11,14 @@
       class="q-mb-md"
     >
       <template #prepend>
-        <QIcon name="search" />
+        <QIcon name="search" size="20px" />
       </template>
     </QInput>
 
     <!-- Results count when searching -->
     <div
       v-if="store.searchQuery && store.filteredRecipes.length > 0"
-      class="text-caption text-grey-7 q-mb-sm"
+      class="ct-label q-mb-sm"
       data-test="results-count"
     >
       {{ $t('recipes.resultsCount', { count: store.filteredRecipes.length }) }}
@@ -28,65 +28,53 @@
     <div
       v-if="store.recipes.length === 0"
       data-test="empty-state"
-      class="text-center q-pa-lg text-grey-6"
+      class="ct-empty"
     >
-      <QIcon name="cake" size="64px" class="q-mb-md" />
-      <div class="text-h6">{{ $t('recipes.empty') }}</div>
-      <div class="text-caption">Добавьте рецепты ваших кондитерских изделий</div>
+      <div class="ct-empty__title">{{ $t('recipes.empty') }}</div>
+      <div class="ct-empty__hint">{{ $t('recipes.emptyHint') }}</div>
     </div>
 
     <!-- No results state -->
     <div
       v-else-if="store.searchQuery && store.filteredRecipes.length === 0"
       data-test="no-results"
-      class="text-center q-pa-lg text-grey-6"
+      class="ct-empty"
     >
-      <QIcon name="search_off" size="48px" class="q-mb-md" />
-      <div class="text-subtitle1">{{ $t('recipes.noResults', { query: store.searchQuery }) }}</div>
+      <div class="ct-empty__title">{{ $t('recipes.noResults', { query: store.searchQuery }) }}</div>
     </div>
 
-    <!-- Recipes list -->
-    <QList v-else bordered separator>
-      <QItem
+    <!-- Recipes: each one is a small spec sheet — what it costs, what it sells
+         for, what is left, and which ingredients eat the margin -->
+    <template v-else>
+      <div
         v-for="recipe in store.filteredRecipes"
         :key="recipe.id"
+        class="ct-card"
         data-test="recipe-item"
       >
-        <QItemSection>
-          <QItemLabel>
+        <div class="ct-card__head">
+          <div class="ct-card__name">
             <span v-html="highlightSearchTerm(recipe.name)" />
-          </QItemLabel>
-          <QItemLabel caption>
-            <div class="q-mt-xs">
-              <div>Себестоимость: {{ formatPrice(store.getRecipeCost(recipe)) }} {{ settingsStore.currency }}</div>
-              <div>Цена продажи: {{ formatPrice(recipe.sellingPrice) }} {{ settingsStore.currency }} / {{ getUnitLabel(recipe.sellingUnit) }}</div>
-              <div :class="getProfitColor(recipe)">
-                Прибыль: {{ formatPrice(store.getRecipeProfit(recipe)) }} {{ settingsStore.currency }}
-                ({{ Math.round(store.getRecipeProfitPercent(recipe)) }}%)
-              </div>
-            </div>
-          </QItemLabel>
-        </QItemSection>
+          </div>
 
-        <QItemSection side>
-          <div class="row q-gutter-xs">
+          <div class="ct-recipe__actions">
             <QBtn
               flat
               round
               dense
+              size="sm"
               icon="calculate"
-              color="accent"
               data-test="calculate-button"
               @click="$emit('calculate', recipe.id)"
             >
-              <QTooltip>Посчитать заказ</QTooltip>
+              <QTooltip>{{ $t('recipes.calculateOrder') }}</QTooltip>
             </QBtn>
             <QBtn
               flat
               round
               dense
+              size="sm"
               icon="edit"
-              color="primary"
               data-test="edit-button"
               @click="$emit('edit', recipe.id)"
             >
@@ -96,6 +84,7 @@
               flat
               round
               dense
+              size="sm"
               icon="delete"
               color="negative"
               data-test="delete-button"
@@ -104,9 +93,38 @@
               <QTooltip>{{ $t('common.delete') }}</QTooltip>
             </QBtn>
           </div>
-        </QItemSection>
-      </QItem>
-    </QList>
+        </div>
+
+        <div class="ct-card__body">
+          <CostRibbon :recipe="recipe" class="q-mb-sm" />
+
+          <div class="ct-row">
+            <span class="ct-row__key">{{ $t('recipes.cost') }}</span>
+            <span class="ct-row__val">
+              {{ formatPrice(store.getRecipeCost(recipe)) }} {{ settingsStore.currency }}
+            </span>
+          </div>
+
+          <div class="ct-row">
+            <span class="ct-row__key">{{ $t('recipes.sellingPrice') }}</span>
+            <span class="ct-row__val">
+              {{ formatPrice(recipe.sellingPrice) }} {{ settingsStore.currency }}
+              <span class="ct-faint">/ {{ getUnitLabel(recipe.sellingUnit) }}</span>
+            </span>
+          </div>
+
+          <div class="ct-row">
+            <span class="ct-row__key">{{ $t('recipes.profit') }}</span>
+            <span class="ct-row__val" :class="profitClass(recipe)">
+              {{ formatSigned(store.getRecipeProfit(recipe)) }} {{ settingsStore.currency }}
+              <span class="ct-stamp" :class="stampClass(recipe)">
+                {{ Math.round(store.getRecipeProfitPercent(recipe)) }}%
+              </span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </template>
 
     <!-- Delete confirmation dialog -->
     <QDialog v-model="showDeleteDialog">
@@ -116,12 +134,12 @@
         </QCardSection>
 
         <QCardSection class="q-pt-none">
-          Вы действительно хотите удалить "{{ recipeToDelete?.name }}"?
-          Это действие нельзя отменить.
+          {{ $t('recipes.deleteConfirm') }}
+          <div v-if="recipeToDelete" class="ct-card__name q-mt-sm">{{ recipeToDelete.name }}</div>
         </QCardSection>
 
         <QCardActions align="right">
-          <QBtn flat label="Отмена" color="primary" v-close-popup />
+          <QBtn flat :label="$t('common.cancel')" color="primary" v-close-popup />
           <QBtn
             flat
             :label="$t('common.delete')"
@@ -140,9 +158,10 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRecipesStore } from '@/stores/recipes'
 import { useSettingsStore } from '@/stores/settings'
+import CostRibbon from '@/components/common/CostRibbon.vue'
 import type { Recipe, SellingUnit } from '@/types/recipe'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 interface Emits {
   (e: 'edit', id: number): void
@@ -174,37 +193,76 @@ async function handleDelete() {
 
 // Formatting helpers
 function formatPrice(price: number): string {
-  const formatted = new Intl.NumberFormat('ru-RU', {
+  const formatted = new Intl.NumberFormat(locale.value, {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2
   }).format(price)
-  return formatted.replace(/\u00A0/g, ' ')
+  return formatted.replace(/[\u00a0\u202f]/g, ' ')
+}
+
+// Profit carries a sign: "+7 180" reads as earnings, "7 180" reads as a total
+function formatSigned(value: number): string {
+  const formatted = formatPrice(Math.abs(value))
+  if (value > 0) return `+${formatted}`
+  if (value < 0) return `−${formatted}`
+  return formatted
 }
 
 function getUnitLabel(unit: SellingUnit): string {
-  return unit === 'kg' ? 'кг' : 'шт'
+  return unit === 'kg' ? t('units.kg') : t('units.pcs')
 }
 
-function getProfitColor(recipe: Recipe): string {
-  const profitPercent = store.getRecipeProfitPercent(recipe)
+function profitClass(recipe: Recipe): string {
+  return store.getRecipeProfit(recipe) < 0 ? 'ct-loss' : 'ct-profit'
+}
 
-  if (profitPercent > 50) return 'text-green-7'
-  if (profitPercent > 20) return 'text-orange-7'
-  return 'text-red-7'
+// The stamp only turns red on an actual loss: a thin margin is a business
+// decision, not an error, and colouring it as one trains people to ignore colour
+function stampClass(recipe: Recipe): string {
+  return store.getRecipeProfit(recipe) < 0 ? 'ct-stamp--loss' : 'ct-stamp--profit'
+}
+
+// Recipe names are user input and also arrive from imported files, so they are
+// escaped before the <mark> wrapper goes through v-html
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 // Highlight search term in name
 function highlightSearchTerm(name: string): string {
-  if (!store.searchQuery) return name
+  const safeName = escapeHtml(name)
+  if (!store.searchQuery) return safeName
 
-  const regex = new RegExp(`(${store.searchQuery})`, 'gi')
-  return name.replace(regex, '<mark>$1</mark>')
+  const regex = new RegExp(`(${escapeRegExp(escapeHtml(store.searchQuery))})`, 'gi')
+  return safeName.replace(regex, '<mark>$1</mark>')
 }
 </script>
 
 <style scoped>
-mark {
-  background-color: #ffeb3b;
+.ct-recipe__actions {
+  display: flex;
+  gap: 2px;
+  flex: none;
+  color: var(--ct-ink-faint);
+}
+
+.ct-row__val .ct-stamp {
+  margin-left: 6px;
+}
+
+:deep(mark) {
+  background-color: var(--ct-caramel-soft);
+  color: var(--ct-ink);
   padding: 0 2px;
+  border-radius: 2px;
 }
 </style>

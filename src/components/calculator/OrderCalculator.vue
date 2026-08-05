@@ -1,5 +1,5 @@
 <template>
-  <div class="q-gutter-md">
+  <div>
       <!-- Recipe selector -->
       <QSelect
         v-model="selectedRecipeId"
@@ -8,8 +8,9 @@
         option-label="name"
         emit-value
         map-options
-        label="Выберите рецепт"
-        filled
+        :label="$t('calculator.selectRecipe')"
+        outlined
+        class="q-mb-sm"
         data-test="recipe-select"
       />
 
@@ -18,49 +19,65 @@
         v-model.number="weight"
         type="number"
         :label="weightLabel"
-        filled
+        outlined
+        class="ct-field-num"
         data-test="weight-input"
         :rules="[
-          val => val !== null && val !== '' || 'Введите количество',
-          val => val > 0 || 'Количество должно быть положительным числом'
+          val => val !== null && val !== '' || $t('calculator.enterAmount'),
+          val => val > 0 || $t('calculator.amountPositive')
         ]"
         lazy-rules
         @focus="onWeightFocus"
       >
         <template v-slot:append>
-          <span data-test="unit-label" class="text-caption">{{ unitLabel }}</span>
+          <span data-test="unit-label" class="ct-num-unit">{{ unitLabel }}</span>
         </template>
       </QInput>
 
-      <!-- Total price display -->
-      <div v-if="selectedRecipe && weight > 0" class="q-mt-md">
-        <div class="text-h5" data-test="total-price">
-          💰 ИТОГО: {{ formattedTotal }} {{ settingsStore.currency }}
+      <!-- What the client pays: the one number this screen exists for -->
+      <div v-if="selectedRecipe && weight > 0" class="ct-card ct-card--pad q-mb-md">
+        <div class="ct-label">{{ $t('calculator.total') }}</div>
+        <div class="ct-num-hero q-mt-xs" data-test="total-price">
+          {{ formattedTotal }} <span class="ct-num-unit">{{ settingsStore.currency }}</span>
         </div>
 
         <!-- Profit for confectioner (internal view only) -->
-        <div data-test="profit" class="text-caption text-grey-7 q-mt-sm">
-          Ваша прибыль: {{ formattedProfit }} {{ settingsStore.currency }}
+        <div class="ct-row q-mt-sm" data-test="profit">
+          <span class="ct-row__key">{{ $t('calculator.profit') }}</span>
+          <span class="ct-row__val ct-profit">
+            {{ formattedProfit }} {{ settingsStore.currency }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Where the cost goes: the ribbon at full height, with names -->
+      <div v-if="selectedRecipe" class="ct-section">
+        <div class="ct-label ct-section__label">{{ $t('recipes.costBreakdown.title') }}</div>
+        <div class="ct-card ct-card--pad">
+          <CostRibbon :recipe="selectedRecipe" tall legend />
         </div>
       </div>
 
       <!-- Receipt Preview -->
-      <div v-if="selectedRecipe && weight > 0 && receiptImageUrl" class="q-mt-md q-pa-md bg-grey-2 rounded-borders">
-        <div class="text-subtitle2 q-mb-sm text-grey-8">Предпросмотр чека для клиента:</div>
-        <img
-          :src="receiptImageUrl"
-          alt="Чек заказа"
-          class="receipt-image"
-          style="width: 100%; max-width: 600px; display: block; margin: 0 auto; border-radius: 4px;"
-        />
+      <div v-if="selectedRecipe && weight > 0 && receiptImageUrl" class="ct-section">
+        <div class="ct-label ct-section__label">{{ $t('calculator.receiptPreview') }}</div>
+        <div class="ct-card ct-card--pad">
+          <img
+            :src="receiptImageUrl"
+            :alt="$t('calculator.receiptPreview')"
+            class="receipt-image"
+            style="width: 100%; max-width: 600px; display: block; margin: 0 auto; border-radius: 4px;"
+          />
+        </div>
       </div>
 
       <!-- Action buttons -->
-      <div class="row q-gutter-sm q-mt-md">
+      <div class="ct-actions q-mt-md">
         <QBtn
           v-if="selectedRecipe && weight > 0"
-          label="Отправить чек"
+          :label="$t('calculator.share')"
           color="primary"
+          unelevated
           icon="share"
           data-test="share-button"
           @click="handleShare"
@@ -68,7 +85,7 @@
         />
         <QBtn
           flat
-          label="Закрыть"
+          :label="$t('common.close')"
           @click="emit('close')"
           class="col"
         />
@@ -86,6 +103,7 @@ import { useSettingsStore } from '@/stores/settings'
 import { useReceiptSettingsStore } from '@/stores/receiptSettings'
 import { calculateOrderTotal } from '@/utils/receiptGenerator'
 import { generateReceiptImage, generateReceiptImageDataURL } from '@/utils/receiptImageGenerator'
+import CostRibbon from '@/components/common/CostRibbon.vue'
 import type { Recipe } from '@/types/recipe'
 
 interface Props {

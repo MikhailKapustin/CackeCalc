@@ -17,7 +17,9 @@
     "deleteConfirm": "Möchten Sie diese Zutat wirklich löschen?",
     "purchasePrice": "Einkaufspreis",
     "purchaseAmount": "Packungsmenge",
-    "purchaseUnit": "Einkaufseinheit"
+    "purchaseUnit": "Einkaufseinheit",
+    "emptyHint": "Trage ein, was du einkaufst – Mehl, Sahne, Kartons. Die App rechnet den Preis pro Gramm aus und aktualisiert deine Rezepte, sobald sich Preise ändern.",
+    "perAmount": "für {amount} {unit}"
   },
   "recipes": {
     "title": "Rezepte",
@@ -43,7 +45,12 @@
     "removeIngredient": "Zutat entfernen",
     "calculateOrder": "Bestellung berechnen",
     "totalCost": "Gesamtkosten",
-    "yourMargin": "Ihr Aufschlag {percent}% ({amount} pro {unit})"
+    "yourMargin": "Ihr Aufschlag {percent}% ({amount} pro {unit})",
+    "emptyHint": "Trage ein, was du verkaufst. Jedes Rezept zeigt seine Kosten, deinen Preis und was übrig bleibt.",
+    "costBreakdown": {
+      "other": "Sonstiges",
+      "title": "Woraus sich die Kosten ergeben"
+    }
   },
   "calculator": {
     "title": "Bestellrechner",
@@ -56,7 +63,10 @@
     "pricePerUnit": "Preis pro {unit}",
     "receiptTitle": "🍰 Ihre Bestellkalkulation",
     "item": "Artikel",
-    "receiptFooter": "Berechnet mit der CakeCost App"
+    "receiptFooter": "Berechnet mit der CakeCost App",
+    "enterAmount": "Menge angeben",
+    "amountPositive": "Die Menge muss größer als null sein",
+    "receiptPreview": "Belegvorschau"
   },
   "settings": {
     "title": "Einstellungen",
